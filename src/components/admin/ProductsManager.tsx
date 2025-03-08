@@ -153,13 +153,17 @@ const ProductsList: React.FC = () => {
 
   const handleDuplicateProduct = async (product: Product) => {
     try {
-      const newProduct = { ...product };
-      delete newProduct.id;
-      delete newProduct.created_at;
-      delete newProduct.updated_at;
-      
-      // Modify the title to indicate it's a copy
-      newProduct.title = `${newProduct.title} (Copy)`;
+      // Create a new product object with required fields explicitly defined
+      const newProduct = {
+        title: product.title + " (Copy)", // Ensure title is defined
+        price: product.price, // Ensure price is defined
+        artist: product.artist || "Unknown", // Ensure artist has a fallback
+        category: product.category || "Uncategorized", // Ensure category has a fallback
+        description: product.description || "",
+        image_url: product.image_url || "",
+        dimensions: product.dimensions || "",
+        tags: product.tags || []
+      };
       
       const { data, error } = await supabase
         .from('products')

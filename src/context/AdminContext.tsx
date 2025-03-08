@@ -48,16 +48,28 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     console.log("Attempting admin login for:", email);
     
     try {
-      // Use single quotes for the email to ensure proper SQL execution
-      console.log(`Checking for admin with email: '${email}'`);
+      // Normalize the email to avoid case sensitivity issues
+      const normalizedEmail = email.trim().toLowerCase();
+      console.log(`Checking for admin with normalized email: '${normalizedEmail}'`);
+      
+      // First, check if any admins exist at all (for debugging)
+      const { data: allAdmins, error: allAdminsError } = await supabase
+        .from('admins')
+        .select('*');
+      
+      console.log("All admins in database:", allAdmins, allAdminsError);
+      
+      if (allAdminsError) {
+        console.error("Error fetching all admins:", allAdminsError);
+      }
       
       // Verify admin credentials against the database
       const { data, error } = await supabase
         .from('admins')
         .select('*')
-        .eq('email', email.trim().toLowerCase());
+        .ilike('email', normalizedEmail);
       
-      console.log("Query response:", data, error);
+      console.log("Query response for email match:", data, error);
       
       if (error) {
         console.error("Database error during admin login:", error);
@@ -67,7 +79,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       
       if (!data || data.length === 0) {
-        console.log("No admin found with email:", email);
+        console.log("No admin found with email:", normalizedEmail);
         toast.error("Invalid admin credentials");
         setIsLoading(false);
         return false;

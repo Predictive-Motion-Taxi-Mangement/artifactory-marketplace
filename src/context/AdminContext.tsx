@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isAdminContext } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Admin {
@@ -79,6 +79,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       
       if (error) {
         console.error("Error fetching admin:", error);
+        throw error;
       }
       
       // For development, we allow a hardcoded login

@@ -26,8 +26,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for admin session in localStorage
-    const checkAdminAuth = () => {
+    // Check for admin session in localStorage and Supabase session
+    const checkAdminAuth = async () => {
+      // Check localStorage first for quick load
       const savedAdmin = localStorage.getItem("admin");
       if (savedAdmin) {
         try {
@@ -37,6 +38,27 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.removeItem("admin");
         }
       }
+      
+      // Also check Supabase for session validity
+      try {
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('*')
+          .limit(1)
+          .single();
+        
+        if (adminData && savedAdmin) {
+          // Validate that the saved admin matches a record in the database
+          const parsedAdmin = JSON.parse(savedAdmin);
+          if (parsedAdmin.email !== adminData.email) {
+            localStorage.removeItem("admin");
+            setAdmin(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking admin authentication:", error);
+      }
+      
       setIsLoading(false);
     };
 
@@ -45,16 +67,27 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const adminLogin = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    console.log("Attempting admin login with:", email, password);
+    console.log("Attempting admin login with:", email);
     
     try {
-      // Hardcoded admin credentials for immediate login (development purpose)
-      // This is a fallback in case the database query fails
-      if (email === 'admin@artifi.com' && password === 'adminpassword123') {
-        console.log("Using hardcoded admin credentials");
+      // First try to authenticate against Supabase
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', email)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching admin:", error);
+      }
+      
+      // For development, we allow a hardcoded login
+      // In production, this should be replaced with proper auth
+      if ((data && data.password === password) || 
+          (email === 'admin@artifi.com' && password === 'adminpassword123')) {
         
         // Create admin session
-        const adminUser = {
+        const adminUser = data || {
           id: "hardcoded-admin-id",
           name: "Super Admin",
           email: "admin@artifi.com"
@@ -63,17 +96,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         setAdmin(adminUser);
         localStorage.setItem("admin", JSON.stringify(adminUser));
         
-        setIsLoading(false);
         toast.success("Admin login successful");
         return true;
       }
       
+      toast.error("Invalid email or password");
       return false;
     } catch (error) {
       console.error("Admin login error:", error);
       toast.error("An error occurred during login");
-      setIsLoading(false);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 

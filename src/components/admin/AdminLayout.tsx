@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, Link } from "react-router-dom";
 import { useAdmin } from "@/context/AdminContext";
 import { 
   LayoutDashboard, 
@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -55,7 +56,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
         <h1 className="text-xl font-bold">Artifi Admin</h1>
-        <div className="w-10"></div> {/* Spacer for centering */}
+        <Link to="/" className="text-muted-foreground p-2">
+          <Home size={20} />
+        </Link>
       </div>
 
       <div className="flex min-h-screen">
@@ -105,19 +108,29 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <p className="text-xs text-muted-foreground">{admin?.email}</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              className="w-full flex items-center justify-center gap-2"
-              onClick={handleLogout}
-            >
-              <LogOut size={16} />
-              <span>Logout</span>
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button 
+                variant="outline" 
+                className="w-full flex items-center justify-center gap-2"
+                onClick={() => navigate("/")}
+              >
+                <Home size={16} />
+                <span>View Store</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full flex items-center justify-center gap-2"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+                <span>Logout</span>
+              </Button>
+            </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 md:p-8">
+        <main className="flex-1 p-6 md:p-8 overflow-auto">
           {children}
         </main>
 

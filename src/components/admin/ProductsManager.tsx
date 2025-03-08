@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -46,7 +47,7 @@ const ProductsList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [sortField, setSortField] = useState("created_at");
-  const [sortDirection, setSortDirection<"asc" | "desc">("desc");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const fetchProducts = async () => {
     console.log("Fetching products...");

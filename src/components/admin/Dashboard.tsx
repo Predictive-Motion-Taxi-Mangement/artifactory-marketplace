@@ -18,6 +18,33 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+// Define proper types for our data
+type StatItem = {
+  title: string;
+  value: string; // Ensure all values are strings to prevent type errors
+  change: string;
+  trend: "up" | "down";
+  icon: React.FC<{ className?: string }>;
+  color: string;
+  isLoading: boolean;
+};
+
+type QuickLink = {
+  title: string;
+  icon: React.FC<{ className?: string }>;
+  path: string;
+  color: string;
+};
+
+type ActivityItem = {
+  type: string;
+  title: string;
+  description: string;
+  time: string;
+  icon: React.FC<{ className?: string }>;
+  color: string;
+};
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
@@ -72,12 +99,11 @@ const Dashboard: React.FC = () => {
     }
   });
 
-  const isLoading = isLoadingProducts || isLoadingOrders || isLoadingUsers || isLoadingSales;
-
-  const stats = [
+  // Properly define stats with explicit string typing for values
+  const stats: StatItem[] = [
     { 
       title: "Total Sales", 
-      value: isLoadingSales ? "Loading..." : `$${totalSales ? totalSales.toFixed(2) : "0.00"}`, 
+      value: isLoadingSales ? "Loading..." : `$${totalSales !== null ? totalSales.toFixed(2) : "0.00"}`, 
       change: "+12.5%", 
       trend: "up",
       icon: DollarSign,
@@ -86,7 +112,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Products", 
-      value: isLoadingProducts ? "Loading..." : (productsCount !== null ? productsCount.toString() : "0"), 
+      value: isLoadingProducts ? "Loading..." : `${productsCount !== null ? productsCount : 0}`, 
       change: "+3", 
       trend: "up",
       icon: Package,
@@ -95,7 +121,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Orders", 
-      value: isLoadingOrders ? "Loading..." : (ordersCount !== null ? ordersCount.toString() : "0"), 
+      value: isLoadingOrders ? "Loading..." : `${ordersCount !== null ? ordersCount : 0}`,
       change: "+22.4%", 
       trend: "up",
       icon: ShoppingBag,
@@ -104,8 +130,8 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Visitors", 
-      // Fixed the type error by ensuring we convert the number to string
-      value: isLoadingUsers ? "Loading..." : ((usersCount !== null ? (usersCount * 178) : 0).toString()), 
+      // Convert to string using template literal to avoid type errors
+      value: isLoadingUsers ? "Loading..." : `${usersCount !== null ? usersCount * 178 : 0}`,
       change: "+18.7%", 
       trend: "up",
       icon: Eye,
@@ -114,14 +140,14 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const quickLinks = [
+  const quickLinks: QuickLink[] = [
     { title: "Manage Products", icon: Package, path: "/admin/products", color: "bg-blue-100 dark:bg-blue-900" },
     { title: "Process Orders", icon: ShoppingCart, path: "/admin/orders", color: "bg-purple-100 dark:bg-purple-900" },
     { title: "View Users", icon: Users, path: "/admin/users", color: "bg-green-100 dark:bg-green-900" },
     { title: "Manage Blog", icon: FileText, path: "/admin/blog", color: "bg-amber-100 dark:bg-amber-900" },
   ];
 
-  const recentActivity = [
+  const recentActivity: ActivityItem[] = [
     {
       type: "order",
       title: "New order received",
@@ -148,6 +174,71 @@ const Dashboard: React.FC = () => {
     }
   ];
 
+  // Render components
+  const renderStatCard = (stat: StatItem, index: number) => (
+    <Card key={index}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          {stat.title}
+        </CardTitle>
+        <div className={`rounded-full p-2 ${stat.color} bg-opacity-10`}>
+          {stat.isLoading ? (
+            <Loader2 className={`h-4 w-4 ${stat.color} animate-spin`} />
+          ) : (
+            <stat.icon className={`h-4 w-4 ${stat.color}`} />
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{stat.value}</div>
+        <p className={`text-xs ${stat.trend === "up" ? "text-green-500" : "text-red-500"} flex items-center`}>
+          {stat.change}
+          {stat.trend === "up" ? (
+            <TrendingUp className="ml-1 h-3 w-3" />
+          ) : (
+            <TrendingDown className="ml-1 h-3 w-3" />
+          )}
+        </p>
+      </CardContent>
+    </Card>
+  );
+
+  const renderQuickLinkCard = (link: QuickLink, index: number) => (
+    <Card key={index} className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2">
+        <div className={`rounded-full p-2 w-12 h-12 flex items-center justify-center ${link.color}`}>
+          <link.icon className="h-6 w-6" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <CardTitle className="text-lg">{link.title}</CardTitle>
+        <CardDescription>Manage your store content</CardDescription>
+      </CardContent>
+      <CardFooter>
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => navigate(link.path)}
+        >
+          Go to {link.title.split(' ')[1]}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+
+  const renderActivityItem = (activity: ActivityItem, index: number) => (
+    <div key={index} className={`flex items-start gap-4 ${index !== recentActivity.length - 1 ? 'border-b pb-4' : ''}`}>
+      <div className={`${activity.color} p-2 rounded`}>
+        <activity.icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="font-medium">{activity.title}</p>
+        <p className="text-sm text-muted-foreground">{activity.description}</p>
+        <p className="text-xs text-muted-foreground">{activity.time}</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-8">
       <div>
@@ -157,61 +248,14 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <div className={`rounded-full p-2 ${stat.color} bg-opacity-10`}>
-                {stat.isLoading ? (
-                  <Loader2 className={`h-4 w-4 ${stat.color} animate-spin`} />
-                ) : (
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className={`text-xs ${stat.trend === "up" ? "text-green-500" : "text-red-500"} flex items-center`}>
-                {stat.change}
-                {stat.trend === "up" ? (
-                  <TrendingUp className="ml-1 h-3 w-3" />
-                ) : (
-                  <TrendingDown className="ml-1 h-3 w-3" />
-                )}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        {stats.map(renderStatCard)}
       </div>
 
       {/* Quick Actions */}
       <div>
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickLinks.map((link, index) => (
-            <Card key={index} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className={`rounded-full p-2 w-12 h-12 flex items-center justify-center ${link.color}`}>
-                  <link.icon className="h-6 w-6" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-lg">{link.title}</CardTitle>
-                <CardDescription>Manage your store content</CardDescription>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => navigate(link.path)}
-                >
-                  Go to {link.title.split(' ')[1]}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          {quickLinks.map(renderQuickLinkCard)}
         </div>
       </div>
 
@@ -225,18 +269,7 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className={`flex items-start gap-4 ${index !== recentActivity.length - 1 ? 'border-b pb-4' : ''}`}>
-                  <div className={`${activity.color} p-2 rounded`}>
-                    <activity.icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{activity.title}</p>
-                    <p className="text-sm text-muted-foreground">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+              {recentActivity.map(renderActivityItem)}
             </div>
           </CardContent>
           <CardFooter>

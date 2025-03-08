@@ -5,6 +5,7 @@ import { useAdmin } from "@/context/AdminContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Dashboard from "@/components/admin/Dashboard";
 import ProductsManager from "@/components/admin/ProductsManager";
+import CategoriesManager from "@/components/admin/CategoriesManager";
 import OrdersManager from "@/components/admin/OrdersManager";
 import UsersManager from "@/components/admin/UsersManager";
 import BlogManager from "@/components/admin/BlogManager";
@@ -42,6 +43,7 @@ const AdminDashboard: React.FC = () => {
         <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/products/*" element={<ProductsManager />} />
+        <Route path="/categories/*" element={<CategoriesManager />} />
         <Route path="/orders/*" element={<OrdersManager />} />
         <Route path="/users" element={<UsersManager />} />
         <Route path="/blog/*" element={<BlogManager />} />

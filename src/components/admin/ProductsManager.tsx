@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -20,7 +21,8 @@ import {
   DollarSign,
   Save,
   X,
-  Check
+  Check,
+  FolderTree
 } from "lucide-react";
 import { 
   Table, 
@@ -61,6 +63,7 @@ interface Product {
   price: number;
   artist: string;
   category: string;
+  category_id?: string;
   description?: string;
   image_url?: string;
   dimensions?: string;
@@ -69,23 +72,19 @@ interface Product {
   updated_at?: string;
 }
 
-const categories = [
-  "Abstract", 
-  "Portrait", 
-  "Landscape", 
-  "Surreal", 
-  "Modern", 
-  "Contemporary", 
-  "Cubism", 
-  "Impressionism", 
-  "Minimalism"
-];
+interface Category {
+  id: string;
+  name: string;
+  parent_id?: string;
+  description?: string;
+}
 
 const productSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters" }),
   price: z.coerce.number().min(0.01, { message: "Price must be greater than 0" }),
   artist: z.string().min(2, { message: "Artist name is required" }),
   category: z.string().min(1, { message: "Please select a category" }),
+  category_id: z.string().optional(),
   description: z.string().optional(),
   image_url: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal('')),
   dimensions: z.string().optional(),
@@ -96,6 +95,7 @@ type ProductFormValues = z.infer<typeof productSchema>;
 
 const ProductsList: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortField, setSortField] = useState("created_at");
@@ -106,7 +106,10 @@ const ProductsList: React.FC = () => {
     try {
       let query = supabase
         .from('products')
-        .select('*');
+        .select(`
+          *,
+          categories(id, name, parent_id)
+        `);
       
       query = query.order(sortField, { ascending: sortDirection === "asc" });
       
@@ -117,14 +120,32 @@ const ProductsList: React.FC = () => {
         throw error;
       }
       
-      console.log("Products fetched:", data);
-      return (data || []) as Product[];
+      // Map the data to include the category name from the categories relation
+      const mappedData = data?.map(product => ({
+        ...product,
+        category: product.categories?.name || product.category || "Uncategorized"
+      }));
+      
+      console.log("Products fetched:", mappedData);
+      return (mappedData || []) as Product[];
     } catch (error) {
       console.error("Failed to fetch products:", error);
       toast.error("Failed to fetch products");
       return [];
     }
   };
+
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+      
+      if (error) throw error;
+      return data as Category[];
+    }
+  });
 
   const { data: products = [], isLoading, error, refetch } = useQuery({
     queryKey: ['products', sortField, sortDirection],
@@ -140,11 +161,34 @@ const ProductsList: React.FC = () => {
     }
   };
 
+  // Get all categories including subcategories
+  const getAllCategories = () => {
+    // Create a map of category ids to their data
+    const categoryMap = categories.reduce<Record<string, Category & { path: string }>>((acc, cat) => {
+      acc[cat.id] = { ...cat, path: cat.name };
+      return acc;
+    }, {});
+    
+    // Add the full path for subcategories
+    categories.forEach(cat => {
+      if (cat.parent_id && categoryMap[cat.parent_id]) {
+        categoryMap[cat.id].path = `${categoryMap[cat.parent_id].path} > ${cat.name}`;
+      }
+    });
+    
+    return Object.values(categoryMap);
+  };
+
+  const allCategories = getAllCategories();
+
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.artist?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase()) || '';
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
+    
+    const matchesCategory = categoryFilter === "all" || 
+                          (product.category_id && product.category_id === categoryFilter);
+    
     return matchesSearch && matchesCategory;
   });
 
@@ -155,6 +199,7 @@ const ProductsList: React.FC = () => {
         price: typeof product.price === 'number' ? product.price : 0, 
         artist: product.artist || "Unknown", 
         category: product.category || "Uncategorized",
+        category_id: product.category_id || null,
         description: product.description || "",
         image_url: product.image_url || "",
         dimensions: product.dimensions || "",
@@ -169,7 +214,7 @@ const ProductsList: React.FC = () => {
       if (error) throw error;
       
       toast.success("Product duplicated successfully");
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     } catch (error) {
       console.error("Error duplicating product:", error);
       toast.error("Failed to duplicate product");
@@ -187,7 +232,7 @@ const ProductsList: React.FC = () => {
         if (error) throw error;
         
         toast.success("Product deleted successfully");
-        refetch();
+        queryClient.invalidateQueries({ queryKey: ['products'] });
       } catch (error) {
         console.error("Error deleting product:", error);
         toast.error("Failed to delete product");
@@ -240,7 +285,7 @@ const ProductsList: React.FC = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="w-full sm:w-[200px] flex items-center space-x-2">
+            <div className="w-full sm:w-[250px] flex items-center space-x-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger>
@@ -248,9 +293,15 @@ const ProductsList: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
+                  <Separator className="my-2" />
+                  {isLoadingCategories ? (
+                    <div className="flex items-center justify-center p-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Loading...
+                    </div>
+                  ) : allCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.path}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -377,6 +428,7 @@ const ProductFormWrapper: React.FC = () => {
 
 const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEditing = !!productId;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -389,12 +441,46 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
       price: 0,
       artist: '',
       category: '',
+      category_id: '',
       description: '',
       image_url: '',
       dimensions: '',
       tags: []
     }
   });
+
+  // Fetch categories for dropdown
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+      
+      if (error) throw error;
+      return data as Category[];
+    }
+  });
+
+  // Get all categories including subcategories with proper formatting
+  const getAllCategories = () => {
+    // Create a map of category ids to their data
+    const categoryMap = categories.reduce<Record<string, Category & { path: string }>>((acc, cat) => {
+      acc[cat.id] = { ...cat, path: cat.name };
+      return acc;
+    }, {});
+    
+    // Add the full path for subcategories
+    categories.forEach(cat => {
+      if (cat.parent_id && categoryMap[cat.parent_id]) {
+        categoryMap[cat.id].path = `${categoryMap[cat.parent_id].path} > ${cat.name}`;
+      }
+    });
+    
+    return Object.values(categoryMap);
+  };
+
+  const allCategories = getAllCategories();
   
   const { isLoading } = useQuery({
     queryKey: ['product', productId],
@@ -403,18 +489,26 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
       
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          categories(id, name)
+        `)
         .eq('id', productId)
         .single();
         
       if (error) throw error;
       
       if (data) {
+        // Set category_id for the dropdown
+        const categoryId = data.category_id || data.categories?.id;
+        const categoryName = data.categories?.name || data.category || '';
+        
         form.reset({
           title: data.title || '',
           price: data.price || 0,
           artist: data.artist || '',
-          category: data.category || '',
+          category: categoryName,
+          category_id: categoryId || '',
           description: data.description || '',
           image_url: data.image_url || '',
           dimensions: data.dimensions || '',
@@ -426,6 +520,13 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
     },
     enabled: isEditing,
   });
+  
+  // Handle category selection
+  const handleCategoryChange = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    form.setValue('category_id', categoryId);
+    form.setValue('category', category?.name || '');
+  };
   
   const addTag = () => {
     if (!tagInput.trim()) return;
@@ -457,6 +558,7 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         price: typeof data.price === 'number' ? data.price : 0,
         artist: data.artist || "Unknown",
         category: data.category || "Uncategorized",
+        category_id: data.category_id || null,
         description: data.description || "",
         image_url: data.image_url || "",
         dimensions: data.dimensions || "",
@@ -484,6 +586,7 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         toast.success("Product added successfully");
       }
       
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       navigate('/admin/products');
     } catch (error: any) {
       console.error("Error saving product:", error);
@@ -587,28 +690,51 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                     
                     <FormField
                       control={form.control}
-                      name="category"
+                      name="category_id"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Category</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {categories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                  {category}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <Select 
+                              onValueChange={handleCategoryChange}
+                              value={field.value || ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {isLoadingCategories ? (
+                                  <div className="flex items-center justify-center p-2">
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Loading...
+                                  </div>
+                                ) : allCategories.map((category) => (
+                                  <SelectItem key={category.id} value={category.id}>
+                                    <div className="flex items-center">
+                                      <span>{category.path}</span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              type="button"
+                              onClick={() => navigate('/admin/categories/new')}
+                              title="Add New Category"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <FormDescription>
+                            <span className="flex items-center mt-1 text-xs">
+                              <FolderTree className="h-3 w-3 mr-1" />
+                              Select a category for this product or create a new one
+                            </span>
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -627,6 +753,7 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                             placeholder="Describe your product..."
                             rows={5}
                             {...field}
+                            value={field.value || ""}
                           />
                         </FormControl>
                         <FormDescription>
@@ -656,7 +783,7 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                       <FormItem>
                         <FormLabel>Dimensions</FormLabel>
                         <FormControl>
-                          <Input placeholder='e.g., 24" x 36"' {...field} />
+                          <Input placeholder='e.g., 24" x 36"' {...field} value={field.value || ""} />
                         </FormControl>
                         <FormDescription>
                           The physical dimensions of the artwork.

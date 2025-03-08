@@ -86,7 +86,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Products", 
-      value: isLoadingProducts ? "Loading..." : productsCount?.toString() || "0",
+      value: isLoadingProducts ? "Loading..." : (productsCount !== null ? productsCount.toString() : "0"), 
       change: "+3", 
       trend: "up",
       icon: Package,
@@ -95,7 +95,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Orders", 
-      value: isLoadingOrders ? "Loading..." : ordersCount?.toString() || "0",
+      value: isLoadingOrders ? "Loading..." : (ordersCount !== null ? ordersCount.toString() : "0"), 
       change: "+22.4%", 
       trend: "up",
       icon: ShoppingBag,

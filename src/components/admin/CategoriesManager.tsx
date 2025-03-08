@@ -392,6 +392,7 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
   const isEditing = !!categoryId;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("basic");
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -408,6 +409,7 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
 
   // Watch the name field to auto-generate slug
   const watchName = form.watch("name");
+  const watchSlug = form.watch("slug");
 
   // Auto-generate slug from name when name changes and slug is empty
   useEffect(() => {
@@ -421,6 +423,13 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
       form.setValue("slug", slug, { shouldValidate: true });
     }
   }, [watchName, form]);
+
+  // Clear slug error when slug changes
+  useEffect(() => {
+    if (slugError) {
+      setSlugError(null);
+    }
+  }, [watchSlug, slugError]);
 
   const { data: parentCategories = [], isLoading: isLoadingParents } = useQuery({
     queryKey: ['parentCategories'],
@@ -477,11 +486,49 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
     enabled: isEditing,
   });
 
+  // Check if slug already exists
+  const checkSlugExists = async (slug: string): Promise<boolean> => {
+    try {
+      // Don't check against the current category when editing
+      const query = supabase
+        .from('categories')
+        .select('id')
+        .eq('slug', slug);
+      
+      if (isEditing && categoryId) {
+        query.neq('id', categoryId);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      return (data && data.length > 0);
+    } catch (error) {
+      console.error("Error checking slug uniqueness:", error);
+      return false;
+    }
+  };
+
   const onSubmit = async (data: CategoryFormValues) => {
     setIsSubmitting(true);
+    setSlugError(null);
     
     try {
       console.log("Submitting category data:", data);
+      
+      // Check if slug already exists
+      const slugExists = await checkSlugExists(data.slug);
+      
+      if (slugExists) {
+        setSlugError("This slug is already in use. Please choose a different one.");
+        form.setError("slug", { 
+          type: "manual", 
+          message: "This slug is already in use. Please choose a different one." 
+        });
+        setIsSubmitting(false);
+        return;
+      }
       
       // Prepare parent_id (convert "none" to null)
       const parentId = data.parent_id === "none" || !data.parent_id ? null : data.parent_id;
@@ -530,7 +577,17 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
       navigate('/admin/categories');
     } catch (error: any) {
       console.error("Error saving category:", error);
-      toast.error(`Failed to ${isEditing ? 'update' : 'add'} category: ${error.message}`);
+      
+      // Check if this is a duplicate key error
+      if (error.message && error.message.includes("duplicate key value violates unique constraint")) {
+        setSlugError("This slug is already in use. Please choose a different one.");
+        form.setError("slug", { 
+          type: "manual", 
+          message: "This slug is already in use. Please choose a different one." 
+        });
+      } else {
+        toast.error(`Failed to ${isEditing ? 'update' : 'add'} category: ${error.message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -598,8 +655,11 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
                             <Input placeholder="category-slug" {...field} />
                           </FormControl>
                           <FormDescription>
-                            URL-friendly version of the name.
+                            URL-friendly version of the name. Must be unique.
                           </FormDescription>
+                          {slugError && (
+                            <p className="text-sm font-medium text-destructive">{slugError}</p>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}

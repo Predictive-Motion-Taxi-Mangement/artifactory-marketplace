@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, Share2, Heart, ZoomIn, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Share2, Heart, ZoomIn, ShoppingCart, Tag } from "lucide-react";
 
 // In a real application, we would fetch this data from an API
 // This is just a demo artwork for display purposes
@@ -219,8 +220,9 @@ const ArtworkDetail: React.FC = () => {
                 {artwork.tags.map((tag, index) => (
                   <span 
                     key={index}
-                    className="px-3 py-1 rounded-full bg-secondary/50 text-sm"
+                    className="px-3 py-1 rounded-full bg-secondary/50 text-sm flex items-center gap-1"
                   >
+                    <Tag size={12} />
                     {tag}
                   </span>
                 ))}

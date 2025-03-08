@@ -1,9 +1,11 @@
 
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart } from "lucide-react";
+import { Heart, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface ArtworkCardProps {
   id: string;
@@ -28,11 +30,16 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const { addToCart } = useCart();
+  const { toast } = useToast();
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsFavorite(!isFavorite);
+    toast({
+      title: isFavorite ? "Removed from favorites" : "Added to favorites",
+      description: `${title} has been ${isFavorite ? "removed from" : "added to"} your favorites.`,
+    });
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -45,6 +52,10 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
       price,
       image,
     });
+    toast({
+      title: "Added to cart",
+      description: `${title} has been added to your cart.`,
+    });
   };
 
   const handleArtistClick = (e: React.MouseEvent) => {
@@ -53,6 +64,12 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
     // This would navigate to artist page, using window.location
     // to avoid the nested links issue
     window.location.href = `/artists/${artistId}`;
+  };
+
+  const handleQuickView = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `/artwork/${id}`;
   };
 
   return (
@@ -83,6 +100,20 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
             )}
             onLoad={() => setIsLoaded(true)}
           />
+
+          {/* Quick actions overlay */}
+          <div className={cn(
+            "absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 transition-opacity duration-300",
+            isHovered && "opacity-100"
+          )}>
+            <button
+              onClick={handleQuickView}
+              className="bg-white/90 text-foreground rounded-full p-2 mx-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+              aria-label="Quick view"
+            >
+              <Eye size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Favorite Button */}

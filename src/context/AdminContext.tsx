@@ -26,40 +26,40 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for admin session in localStorage and Supabase session
+    // Check for admin session in localStorage
     const checkAdminAuth = async () => {
-      // Check localStorage first for quick load
-      const savedAdmin = localStorage.getItem("admin");
-      if (savedAdmin) {
-        try {
-          setAdmin(JSON.parse(savedAdmin));
-        } catch (error) {
-          console.error("Error parsing admin from localStorage:", error);
-          localStorage.removeItem("admin");
-        }
-      }
-      
-      // Also check Supabase for session validity
       try {
-        const { data: adminData } = await supabase
-          .from('admins')
-          .select('*')
-          .limit(1)
-          .single();
+        const savedAdmin = localStorage.getItem("admin");
         
-        if (adminData && savedAdmin) {
-          // Validate that the saved admin matches a record in the database
+        if (savedAdmin) {
+          // Parse the saved admin data
           const parsedAdmin = JSON.parse(savedAdmin);
-          if (parsedAdmin.email !== adminData.email) {
+          
+          // Validate the admin session
+          const { data, error } = await supabase
+            .from('admins')
+            .select('*')
+            .eq('email', parsedAdmin.email)
+            .maybeSingle();
+          
+          if (data) {
+            // Admin exists in the database, session is valid
+            setAdmin(parsedAdmin);
+            console.log("Admin session restored:", parsedAdmin.email);
+          } else {
+            // Admin doesn't exist or session is invalid
+            console.log("Invalid admin session, logging out");
             localStorage.removeItem("admin");
             setAdmin(null);
           }
         }
       } catch (error) {
         console.error("Error checking admin authentication:", error);
+        localStorage.removeItem("admin");
+        setAdmin(null);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     checkAdminAuth();
@@ -75,7 +75,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         .from('admins')
         .select('*')
         .eq('email', email)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error("Error fetching admin:", error);

@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { NavLink, useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, useNavigate, Link, useLocation } from "react-router-dom";
 import { useAdmin } from "@/context/AdminContext";
 import { 
   LayoutDashboard, 
@@ -13,7 +13,8 @@ import {
   LogOut,
   Menu,
   X,
-  Home
+  Home,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +27,19 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { admin, adminLogout } = useAdmin();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activePath, setActivePath] = useState("");
+
+  useEffect(() => {
+    // Set active path based on current location
+    setActivePath(location.pathname);
+    
+    // Close sidebar on mobile when navigating
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     adminLogout();
@@ -51,7 +64,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-background border-b">
+      <div className="md:hidden flex items-center justify-between p-4 bg-background border-b sticky top-0 z-30">
         <Button variant="ghost" onClick={toggleSidebar}>
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
@@ -116,6 +129,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               >
                 <Home size={16} />
                 <span>View Store</span>
+                <ChevronRight size={14} className="ml-auto" />
               </Button>
               <Button 
                 variant="outline" 
@@ -130,7 +144,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 md:p-8 overflow-auto">
+        <main className="flex-1 p-6 md:p-8 overflow-auto md:max-h-screen">
           {children}
         </main>
 

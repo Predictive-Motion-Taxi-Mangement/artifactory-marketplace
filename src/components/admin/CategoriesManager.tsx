@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -600,7 +599,7 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
                         <FormLabel>Parent Category</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          value={field.value || ""}
+                          value={field.value || "none"}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -608,7 +607,7 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None (Main Category)</SelectItem>
+                            <SelectItem value="none">None (Main Category)</SelectItem>
                             {isLoadingParents ? (
                               <div className="flex items-center justify-center p-2">
                                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

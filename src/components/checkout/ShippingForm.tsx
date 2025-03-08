@@ -166,7 +166,7 @@ const ShippingForm: React.FC<ShippingFormProps> = ({ initialValues, onSubmit }) 
                   <FormLabel>Country</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
-                    defaultValue={field.value}
+                    defaultValue={field.value || "United States"}
                   >
                     <FormControl>
                       <SelectTrigger>

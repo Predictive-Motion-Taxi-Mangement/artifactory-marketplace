@@ -65,7 +65,7 @@ const Explore: React.FC = () => {
     searchParams.get('subcategory') || null
   );
   const [sortOrder, setSortOrder] = useState<string>(
-    searchParams.get('sort') || 'newest'
+    searchParams.get('sort') || "newest"
   );
 
   useEffect(() => {
@@ -499,7 +499,7 @@ const Explore: React.FC = () => {
                 </h1>
                 
                 <div className="flex gap-2">
-                  <Select value={sortOrder} onValueChange={setSortOrder}>
+                  <Select value={sortOrder || "newest"} onValueChange={setSortOrder}>
                     <SelectTrigger className="w-[150px]">
                       <SlidersHorizontal className="h-4 w-4 mr-2" />
                       <SelectValue placeholder="Sort by" />

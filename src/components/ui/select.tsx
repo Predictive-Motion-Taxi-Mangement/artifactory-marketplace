@@ -114,11 +114,20 @@ const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, ...props }, ref) => {
-  // Ensure value is not an empty string
+  // Handle empty values more robustly
+  const value = props.value === '' || props.value === undefined || props.value === null 
+    ? 'placeholder' 
+    : props.value;
+  
   if (props.value === '') {
-    console.warn('SelectItem: value prop cannot be an empty string');
-    props.value = props.value === '' ? 'default' : props.value;
+    console.warn('SelectItem: value prop cannot be an empty string, using "placeholder" instead');
   }
+  
+  // Create a new props object with the corrected value
+  const safeProps = {
+    ...props,
+    value
+  };
   
   return (
     <SelectPrimitive.Item
@@ -127,7 +136,7 @@ const SelectItem = React.forwardRef<
         "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
-      {...props}
+      {...safeProps}
     >
       <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
         <SelectPrimitive.ItemIndicator>

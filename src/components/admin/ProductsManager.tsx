@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -453,7 +454,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
                 name="dimensions"
                 value={formState.dimensions || ''}
                 onChange={handleInputChange}
-                placeholder="e.g., 24\" x 36\""
+                placeholder='e.g., 24" x 36"'
               />
             </div>
           </div>

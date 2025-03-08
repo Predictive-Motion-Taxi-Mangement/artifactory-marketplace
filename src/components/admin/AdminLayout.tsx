@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   Home,
-  ChevronRight
+  ChevronRight,
+  FolderTree
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -54,6 +55,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navigationItems = [
     { path: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/admin/products", label: "Products", icon: Package },
+    { path: "/admin/categories", label: "Categories", icon: FolderTree },
     { path: "/admin/orders", label: "Orders", icon: ShoppingCart },
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/blog", label: "Blog", icon: FileText },

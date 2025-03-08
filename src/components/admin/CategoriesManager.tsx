@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -424,12 +425,18 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
   const { data: parentCategories = [], isLoading: isLoadingParents } = useQuery({
     queryKey: ['parentCategories'],
     queryFn: async () => {
+      console.log("Fetching parent categories");
       const { data, error } = await supabase
         .from('categories')
         .select('id, name')
         .is('parent_id', null);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching parent categories:", error);
+        throw error;
+      }
+      
+      console.log("Parent categories fetched:", data);
       
       // If editing, filter out self to prevent circular reference
       const filteredData = isEditing
@@ -474,6 +481,11 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
     setIsSubmitting(true);
     
     try {
+      console.log("Submitting category data:", data);
+      
+      // Prepare parent_id (convert "none" to null)
+      const parentId = data.parent_id === "none" || !data.parent_id ? null : data.parent_id;
+      
       if (isEditing && categoryId) {
         const { error } = await supabase
           .from('categories')
@@ -484,7 +496,7 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
             seo_title: data.seo_title || null,
             seo_description: data.seo_description || null,
             seo_keywords: data.seo_keywords || null,
-            parent_id: data.parent_id || null,
+            parent_id: parentId,
             updated_at: new Date().toISOString()
           })
           .eq('id', categoryId);
@@ -501,10 +513,13 @@ const CategoryForm: React.FC<{ categoryId?: string }> = ({ categoryId }) => {
             seo_title: data.seo_title || null,
             seo_description: data.seo_description || null,
             seo_keywords: data.seo_keywords || null,
-            parent_id: data.parent_id || null
+            parent_id: parentId
           });
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error saving category:", error);
+          throw error;
+        }
         toast.success("Category added successfully");
       }
       

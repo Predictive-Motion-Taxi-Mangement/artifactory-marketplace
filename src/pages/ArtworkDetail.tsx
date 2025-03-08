@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -6,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCart } from "@/context/CartContext";
-import { ArrowLeft, Share2, Heart, ZoomIn, ShoppingCart, Tag } from "lucide-react";
+import { ArrowLeft, Share2, Heart, ZoomIn, ShoppingCart, Tag, X } from "lucide-react";
 
-// In a real application, we would fetch this data from an API
-// This is just a demo artwork for display purposes
 const demoArtwork = {
   id: "artwork-1",
   title: "Cosmic Convergence",
@@ -61,9 +58,8 @@ const ArtworkDetail: React.FC = () => {
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(demoArtwork.image);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
   
-  // In a real app, we would fetch the artwork data based on the id parameter
-  // For this demo, we'll just use the demo artwork regardless of the id
   const artwork = demoArtwork;
   
   const handleAddToCart = () => {
@@ -92,11 +88,14 @@ const ArtworkDetail: React.FC = () => {
   const handleRelatedArtworkClick = (relatedId: string) => {
     navigate(`/artwork/${relatedId}`);
   };
+
+  const handleToggleZoom = () => {
+    setIsZoomed(!isZoomed);
+  };
   
   return (
     <Layout>
       <div className="container mx-auto px-6 md:px-10 py-12">
-        {/* Back navigation */}
         <Link 
           to="/explore" 
           className="inline-flex items-center gap-2 mb-8 text-foreground/80 hover:text-foreground transition-all"
@@ -106,26 +105,26 @@ const ArtworkDetail: React.FC = () => {
         </Link>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Artwork Images */}
           <div>
             <div className="relative rounded-xl overflow-hidden bg-black/5 aspect-square mb-4">
               <img 
                 src={selectedImage} 
                 alt={artwork.title} 
-                className="w-full h-full object-contain"
+                className={`w-full h-full ${isZoomed ? 'object-cover cursor-zoom-out' : 'object-contain cursor-zoom-in'}`}
+                onClick={handleToggleZoom}
               />
               <button 
                 className="absolute bottom-4 right-4 p-2 bg-white/10 backdrop-blur-sm rounded-full hover:bg-white/20 transition-colors"
-                aria-label="Zoom image"
+                aria-label={isZoomed ? "Zoom out" : "Zoom in"}
+                onClick={handleToggleZoom}
               >
-                <ZoomIn size={20} className="text-white" />
+                {isZoomed ? <X size={20} className="text-white" /> : <ZoomIn size={20} className="text-white" />}
               </button>
             </div>
             
-            {/* Thumbnail Gallery */}
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               <button 
-                className={`rounded-md overflow-hidden w-20 h-20 ${selectedImage === artwork.image ? 'ring-2 ring-primary' : ''}`}
+                className={`rounded-md overflow-hidden w-20 h-20 border-2 transition-all ${selectedImage === artwork.image ? 'border-primary' : 'border-transparent hover:border-primary/50'}`}
                 onClick={() => setSelectedImage(artwork.image)}
               >
                 <img 
@@ -137,7 +136,7 @@ const ArtworkDetail: React.FC = () => {
               {artwork.otherImages.map((img, index) => (
                 <button 
                   key={index}
-                  className={`rounded-md overflow-hidden w-20 h-20 ${selectedImage === img ? 'ring-2 ring-primary' : ''}`}
+                  className={`rounded-md overflow-hidden w-20 h-20 border-2 transition-all ${selectedImage === img ? 'border-primary' : 'border-transparent hover:border-primary/50'}`}
                   onClick={() => setSelectedImage(img)}
                 >
                   <img 
@@ -150,7 +149,6 @@ const ArtworkDetail: React.FC = () => {
             </div>
           </div>
           
-          {/* Artwork Details */}
           <div>
             <h1 className="text-3xl md:text-4xl font-medium mb-2">{artwork.title}</h1>
             <Link 
@@ -191,7 +189,6 @@ const ArtworkDetail: React.FC = () => {
             
             <Separator className="my-8" />
             
-            {/* Artwork Details */}
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <div>
                 <div className="text-sm text-muted-foreground">Dimensions</div>
@@ -213,7 +210,6 @@ const ArtworkDetail: React.FC = () => {
             
             <Separator className="my-8" />
             
-            {/* Tags */}
             <div>
               <div className="text-sm text-muted-foreground mb-3">Tags</div>
               <div className="flex flex-wrap gap-2">
@@ -229,7 +225,6 @@ const ArtworkDetail: React.FC = () => {
               </div>
             </div>
             
-            {/* Share button */}
             <div className="mt-8">
               <Button variant="ghost" className="gap-2">
                 <Share2 size={16} />
@@ -239,12 +234,10 @@ const ArtworkDetail: React.FC = () => {
           </div>
         </div>
         
-        {/* Artist Information */}
         <div className="mt-16 mb-20">
           <h2 className="text-2xl font-medium mb-6">About the Artist</h2>
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="w-24 h-24 rounded-full overflow-hidden bg-secondary/50 flex-shrink-0">
-              {/* This would be the artist's profile image in a real app */}
               <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/50"></div>
             </div>
             <div>
@@ -260,7 +253,6 @@ const ArtworkDetail: React.FC = () => {
           </div>
         </div>
         
-        {/* Related Artworks */}
         <div>
           <h2 className="text-2xl font-medium mb-6">You might also like</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -268,18 +260,20 @@ const ArtworkDetail: React.FC = () => {
               <div 
                 key={related.id}
                 onClick={() => handleRelatedArtworkClick(related.id)}
-                className="group cursor-pointer"
+                className="group cursor-pointer rounded-xl overflow-hidden bg-secondary/30 hover:bg-secondary/50 transition-colors"
               >
-                <div className="rounded-xl overflow-hidden aspect-square mb-3">
+                <div className="overflow-hidden aspect-square">
                   <img 
                     src={related.image} 
                     alt={related.title} 
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
-                <h3 className="font-medium mb-1 group-hover:text-primary transition-colors">{related.title}</h3>
-                <div className="text-foreground/80 text-sm">{related.artistName}</div>
-                <div className="mt-1 font-medium">${related.price.toFixed(2)}</div>
+                <div className="p-4">
+                  <h3 className="font-medium mb-1 group-hover:text-primary transition-colors">{related.title}</h3>
+                  <div className="text-foreground/80 text-sm">{related.artistName}</div>
+                  <div className="mt-1 font-medium">${related.price.toFixed(2)}</div>
+                </div>
               </div>
             ))}
           </div>

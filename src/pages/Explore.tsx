@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
@@ -23,7 +24,6 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Sheet,
   SheetContent,
@@ -58,26 +58,19 @@ const Explore: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState([0, 1000]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    searchParams.get('category') || null
-  );
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(
-    searchParams.get('subcategory') || null
-  );
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<string>(
     searchParams.get('sort') || "newest"
   );
 
-  useEffect(() => {
-    const params = new URLSearchParams();
-    
-    if (searchTerm) params.set('search', searchTerm);
-    if (selectedCategory) params.set('category', selectedCategory);
-    if (selectedSubcategory) params.set('subcategory', selectedSubcategory);
-    if (sortOrder) params.set('sort', sortOrder);
-    
-    setSearchParams(params, { replace: true });
-  }, [searchTerm, selectedCategory, selectedSubcategory, sortOrder, setSearchParams]);
+  // Use this map to convert between slugs and IDs
+  const [categoryMap, setCategoryMap] = useState<Record<string, Category>>({});
+  const [slugToIdMap, setSlugToIdMap] = useState<Record<string, string>>({});
+  
+  // Get category and subcategory slugs from URL
+  const categorySlug = searchParams.get('category');
+  const subcategorySlug = searchParams.get('subcategory');
 
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['explore-categories'],
@@ -90,23 +83,30 @@ const Explore: React.FC = () => {
 
         if (error) throw error;
 
-        const mainCategories: Category[] = [];
-        const categoriesMap: Record<string, Category> = {};
-
+        // Create maps for looking up categories
+        const categoriesById: Record<string, Category> = {};
+        const categoriesBySlug: Record<string, string> = {};
+        
         allCategories?.forEach((category: Category) => {
-          categoriesMap[category.id] = { ...category, subcategories: [] };
+          categoriesById[category.id] = { ...category, subcategories: [] };
+          categoriesBySlug[category.slug] = category.id;
         });
+        
+        setCategoryMap(categoriesById);
+        setSlugToIdMap(categoriesBySlug);
+
+        const mainCategories: Category[] = [];
 
         allCategories?.forEach((category: Category) => {
-          if (category.parent_id && categoriesMap[category.parent_id]) {
-            if (!categoriesMap[category.parent_id].subcategories) {
-              categoriesMap[category.parent_id].subcategories = [];
+          if (category.parent_id && categoriesById[category.parent_id]) {
+            if (!categoriesById[category.parent_id].subcategories) {
+              categoriesById[category.parent_id].subcategories = [];
             }
-            categoriesMap[category.parent_id].subcategories?.push(
-              categoriesMap[category.id]
+            categoriesById[category.parent_id].subcategories?.push(
+              categoriesById[category.id]
             );
           } else {
-            mainCategories.push(categoriesMap[category.id]);
+            mainCategories.push(categoriesById[category.id]);
           }
         });
 
@@ -118,8 +118,45 @@ const Explore: React.FC = () => {
     },
   });
 
+  // Update selected category IDs when URL params change or categories load
+  useEffect(() => {
+    if (Object.keys(slugToIdMap).length > 0) {
+      if (categorySlug && slugToIdMap[categorySlug]) {
+        setSelectedCategoryId(slugToIdMap[categorySlug]);
+      } else {
+        setSelectedCategoryId(null);
+      }
+      
+      if (subcategorySlug && slugToIdMap[subcategorySlug]) {
+        setSelectedSubcategoryId(slugToIdMap[subcategorySlug]);
+      } else {
+        setSelectedSubcategoryId(null);
+      }
+    }
+  }, [categorySlug, subcategorySlug, slugToIdMap]);
+
+  // Update URL based on selected filters
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (searchTerm) params.set('search', searchTerm);
+    
+    // Use the slugs in the URL instead of IDs
+    if (selectedCategoryId && categoryMap[selectedCategoryId]) {
+      params.set('category', categoryMap[selectedCategoryId].slug);
+    }
+    
+    if (selectedSubcategoryId && categoryMap[selectedSubcategoryId]) {
+      params.set('subcategory', categoryMap[selectedSubcategoryId].slug);
+    }
+    
+    if (sortOrder && sortOrder !== "newest") params.set('sort', sortOrder);
+    
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, selectedCategoryId, selectedSubcategoryId, sortOrder, categoryMap, setSearchParams]);
+
   const selectedMainCategory = categories.find(
-    (cat) => cat.id === selectedCategory
+    (cat) => cat.id === selectedCategoryId
   );
 
   const {
@@ -127,7 +164,7 @@ const Explore: React.FC = () => {
     isLoading: isLoadingProducts,
     refetch: refetchProducts,
   } = useQuery({
-    queryKey: ['explore-products', searchTerm, selectedCategory, selectedSubcategory, sortOrder, priceRange],
+    queryKey: ['explore-products', searchTerm, selectedCategoryId, selectedSubcategoryId, sortOrder, priceRange],
     queryFn: async () => {
       try {
         let query = supabase
@@ -137,20 +174,20 @@ const Explore: React.FC = () => {
             categories(id, name, parent_id)
           `);
         
-        if (selectedSubcategory) {
-          query = query.eq('category_id', selectedSubcategory);
-        } else if (selectedCategory) {
+        if (selectedSubcategoryId) {
+          query = query.eq('category_id', selectedSubcategoryId);
+        } else if (selectedCategoryId) {
           const { data: subcats } = await supabase
             .from('categories')
             .select('id')
-            .eq('parent_id', selectedCategory);
+            .eq('parent_id', selectedCategoryId);
           
           const subcategoryIds = subcats?.map(sub => sub.id) || [];
           
           if (subcategoryIds.length > 0) {
-            query = query.or(`category_id.eq.${selectedCategory},category_id.in.(${subcategoryIds.join(',')})`);
+            query = query.or(`category_id.eq.${selectedCategoryId},category_id.in.(${subcategoryIds.join(',')})`);
           } else {
-            query = query.eq('category_id', selectedCategory);
+            query = query.eq('category_id', selectedCategoryId);
           }
         }
         
@@ -192,10 +229,10 @@ const Explore: React.FC = () => {
   });
 
   const getSelectedCategoryInfo = () => {
-    if (selectedSubcategory) {
+    if (selectedSubcategoryId) {
       for (const mainCat of categories) {
         const subCat = mainCat.subcategories?.find(
-          sub => sub.id === selectedSubcategory
+          sub => sub.id === selectedSubcategoryId
         );
         if (subCat) {
           return {
@@ -205,8 +242,8 @@ const Explore: React.FC = () => {
           };
         }
       }
-    } else if (selectedCategory) {
-      const mainCat = categories.find(cat => cat.id === selectedCategory);
+    } else if (selectedCategoryId) {
+      const mainCat = categories.find(cat => cat.id === selectedCategoryId);
       if (mainCat) {
         return {
           title: mainCat.seo_title || mainCat.name,
@@ -232,8 +269,8 @@ const Explore: React.FC = () => {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCategory(null);
-    setSelectedSubcategory(null);
+    setSelectedCategoryId(null);
+    setSelectedSubcategoryId(null);
     setSortOrder('newest');
     setPriceRange([0, 1000]);
     setSearchParams({});
@@ -241,8 +278,8 @@ const Explore: React.FC = () => {
 
   const hasActiveFilters = !!(
     searchTerm || 
-    selectedCategory || 
-    selectedSubcategory || 
+    selectedCategoryId || 
+    selectedSubcategoryId || 
     sortOrder !== 'newest' || 
     priceRange[0] > 0 || 
     priceRange[1] < 1000
@@ -265,7 +302,7 @@ const Explore: React.FC = () => {
               <span className="text-muted-foreground">/</span>
               <Link to="/explore" className="text-muted-foreground hover:text-foreground">Explore</Link>
             </li>
-            {(selectedCategory || selectedSubcategory) && (
+            {(selectedCategoryId || selectedSubcategoryId) && (
               <li className="flex items-center space-x-2">
                 <span className="text-muted-foreground">/</span>
                 <span>{categoryInfo.breadcrumb}</span>
@@ -280,7 +317,7 @@ const Explore: React.FC = () => {
               <h2 className="text-xl font-medium mb-4">Categories</h2>
               <Accordion type="multiple" className="w-full">
                 <AccordionItem value="all-categories" className="border-b">
-                  <Link to="/explore" className={`block py-2 ${!selectedCategory ? 'font-medium text-primary' : 'text-foreground'}`}>
+                  <Link to="/explore" className={`block py-2 ${!selectedCategoryId ? 'font-medium text-primary' : 'text-foreground'}`}>
                     All Categories
                   </Link>
                 </AccordionItem>
@@ -291,12 +328,12 @@ const Explore: React.FC = () => {
                   categories.map((category) => (
                     <AccordionItem key={category.id} value={category.id} className="border-b">
                       <AccordionTrigger
-                        className={`${selectedCategory === category.id && !selectedSubcategory ? 'font-medium text-primary' : ''}`}
+                        className={`${selectedCategoryId === category.id && !selectedSubcategoryId ? 'font-medium text-primary' : ''}`}
                         onClick={(e) => {
                           if (category.subcategories?.length === 0) {
                             e.preventDefault();
-                            setSelectedCategory(category.id);
-                            setSelectedSubcategory(null);
+                            setSelectedCategoryId(category.id);
+                            setSelectedSubcategoryId(null);
                           }
                         }}
                       >
@@ -307,10 +344,10 @@ const Explore: React.FC = () => {
                         <AccordionContent>
                           <div className="ml-4 space-y-2">
                             <div
-                              className={`block py-1 cursor-pointer ${selectedCategory === category.id && !selectedSubcategory ? 'font-medium text-primary' : ''}`}
+                              className={`block py-1 cursor-pointer ${selectedCategoryId === category.id && !selectedSubcategoryId ? 'font-medium text-primary' : ''}`}
                               onClick={() => {
-                                setSelectedCategory(category.id);
-                                setSelectedSubcategory(null);
+                                setSelectedCategoryId(category.id);
+                                setSelectedSubcategoryId(null);
                               }}
                             >
                               All {category.name}
@@ -319,10 +356,10 @@ const Explore: React.FC = () => {
                             {category.subcategories.map((subcat) => (
                               <div
                                 key={subcat.id}
-                                className={`block py-1 cursor-pointer ${selectedSubcategory === subcat.id ? 'font-medium text-primary' : ''}`}
+                                className={`block py-1 cursor-pointer ${selectedSubcategoryId === subcat.id ? 'font-medium text-primary' : ''}`}
                                 onClick={() => {
-                                  setSelectedCategory(category.id);
-                                  setSelectedSubcategory(subcat.id);
+                                  setSelectedCategoryId(category.id);
+                                  setSelectedSubcategoryId(subcat.id);
                                 }}
                               >
                                 {subcat.name}
@@ -394,10 +431,10 @@ const Explore: React.FC = () => {
                     <Accordion type="multiple" className="w-full">
                       <AccordionItem value="all-categories" className="border-b">
                         <div 
-                          className={`block py-2 ${!selectedCategory ? 'font-medium text-primary' : 'text-foreground'}`}
+                          className={`block py-2 ${!selectedCategoryId ? 'font-medium text-primary' : 'text-foreground'}`}
                           onClick={() => {
-                            setSelectedCategory(null);
-                            setSelectedSubcategory(null);
+                            setSelectedCategoryId(null);
+                            setSelectedSubcategoryId(null);
                           }}
                         >
                           All Categories
@@ -407,12 +444,12 @@ const Explore: React.FC = () => {
                       {categories.map((category) => (
                         <AccordionItem key={category.id} value={category.id} className="border-b">
                           <AccordionTrigger
-                            className={`${selectedCategory === category.id && !selectedSubcategory ? 'font-medium text-primary' : ''}`}
+                            className={`${selectedCategoryId === category.id && !selectedSubcategoryId ? 'font-medium text-primary' : ''}`}
                             onClick={(e) => {
                               if (category.subcategories?.length === 0) {
                                 e.preventDefault();
-                                setSelectedCategory(category.id);
-                                setSelectedSubcategory(null);
+                                setSelectedCategoryId(category.id);
+                                setSelectedSubcategoryId(null);
                               }
                             }}
                           >
@@ -423,10 +460,10 @@ const Explore: React.FC = () => {
                             <AccordionContent>
                               <div className="ml-4 space-y-2">
                                 <div
-                                  className={`block py-1 cursor-pointer ${selectedCategory === category.id && !selectedSubcategory ? 'font-medium text-primary' : ''}`}
+                                  className={`block py-1 cursor-pointer ${selectedCategoryId === category.id && !selectedSubcategoryId ? 'font-medium text-primary' : ''}`}
                                   onClick={() => {
-                                    setSelectedCategory(category.id);
-                                    setSelectedSubcategory(null);
+                                    setSelectedCategoryId(category.id);
+                                    setSelectedSubcategoryId(null);
                                   }}
                                 >
                                   All {category.name}
@@ -435,10 +472,10 @@ const Explore: React.FC = () => {
                                 {category.subcategories.map((subcat) => (
                                   <div
                                     key={subcat.id}
-                                    className={`block py-1 cursor-pointer ${selectedSubcategory === subcat.id ? 'font-medium text-primary' : ''}`}
+                                    className={`block py-1 cursor-pointer ${selectedSubcategoryId === subcat.id ? 'font-medium text-primary' : ''}`}
                                     onClick={() => {
-                                      setSelectedCategory(category.id);
-                                      setSelectedSubcategory(subcat.id);
+                                      setSelectedCategoryId(category.id);
+                                      setSelectedSubcategoryId(subcat.id);
                                     }}
                                   >
                                     {subcat.name}
@@ -548,28 +585,28 @@ const Explore: React.FC = () => {
                   </div>
                 )}
                 
-                {selectedSubcategory && selectedMainCategory && (
+                {selectedSubcategoryId && selectedMainCategory && (
                   <div className="flex items-center bg-secondary/50 text-secondary-foreground rounded-full px-3 py-1 text-sm">
-                    {selectedMainCategory.name} &gt; {selectedMainCategory.subcategories?.find(s => s.id === selectedSubcategory)?.name}
+                    {selectedMainCategory.name} &gt; {selectedMainCategory.subcategories?.find(s => s.id === selectedSubcategoryId)?.name}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-4 w-4 ml-1 p-0"
-                      onClick={() => setSelectedSubcategory(null)}
+                      onClick={() => setSelectedSubcategoryId(null)}
                     >
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
                 )}
                 
-                {selectedCategory && !selectedSubcategory && (
+                {selectedCategoryId && !selectedSubcategoryId && (
                   <div className="flex items-center bg-secondary/50 text-secondary-foreground rounded-full px-3 py-1 text-sm">
-                    {categories.find(c => c.id === selectedCategory)?.name}
+                    {categories.find(c => c.id === selectedCategoryId)?.name}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-4 w-4 ml-1 p-0"
-                      onClick={() => setSelectedCategory(null)}
+                      onClick={() => setSelectedCategoryId(null)}
                     >
                       <X className="h-3 w-3" />
                     </Button>

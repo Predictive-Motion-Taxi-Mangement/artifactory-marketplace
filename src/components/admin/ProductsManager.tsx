@@ -260,12 +260,16 @@ const ProductsList: React.FC = () => {
   );
 };
 
-const ProductFormWrapper = () => {
+const ProductFormWrapper: React.FC = () => {
   const { id } = useParams();
   return <ProductForm productId={id} />;
 };
 
-const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
+interface ProductFormProps {
+  productId?: string;
+}
+
+const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   const navigate = useNavigate();
   const isEditing = !!productId;
   

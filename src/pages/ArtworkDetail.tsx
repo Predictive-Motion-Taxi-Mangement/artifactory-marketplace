@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
@@ -71,7 +70,7 @@ const ArtworkDetail: React.FC = () => {
       title: artwork.title,
       price: artwork.price,
       image: artwork.image,
-      quantity: 1
+      artistName: artwork.artistName,
     });
     
     toast({

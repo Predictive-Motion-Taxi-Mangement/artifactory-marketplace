@@ -10,7 +10,8 @@ import {
   Filter, 
   Pencil, 
   Trash,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2
 } from "lucide-react";
 import { 
   Table, 
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import ProductForm from "./ProductForm";
 
 interface Product {
   id: string;
@@ -49,20 +51,32 @@ const ProductsList: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const fetchProducts = async () => {
-    let query = supabase
-      .from('products')
-      .select('*');
-    
-    // Apply sorting
-    query = query.order(sortField, { ascending: sortDirection === "asc" });
-    
-    const { data, error } = await query;
-    
-    if (error) throw error;
-    return data as Product[];
+    console.log("Fetching products...");
+    try {
+      let query = supabase
+        .from('products')
+        .select('*');
+      
+      // Apply sorting
+      query = query.order(sortField, { ascending: sortDirection === "asc" });
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error("Error fetching products:", error);
+        throw error;
+      }
+      
+      console.log("Products fetched:", data);
+      return (data || []) as Product[];
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      toast.error("Failed to fetch products");
+      return [];
+    }
   };
 
-  const { data: products = [], isLoading, refetch } = useQuery({
+  const { data: products = [], isLoading, error, refetch } = useQuery({
     queryKey: ['products', sortField, sortDirection],
     queryFn: fetchProducts,
   });
@@ -78,8 +92,8 @@ const ProductsList: React.FC = () => {
 
   // Filter products based on search term and category
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.artist.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.artist?.toLowerCase().includes(searchTerm.toLowerCase()) || '';
     const matchesCategory = !categoryFilter || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -104,6 +118,24 @@ const ProductsList: React.FC = () => {
       }
     }
   };
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Package className="h-6 w-6" />
+            Products
+          </h1>
+        </div>
+        <Card className="p-6 text-center">
+          <p className="text-destructive text-lg">Error loading products</p>
+          <p className="text-muted-foreground">Please try again later or contact support</p>
+          <Button className="mt-4" onClick={() => refetch()}>Try Again</Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -151,7 +183,8 @@ const ProductsList: React.FC = () => {
 
         {isLoading ? (
           <div className="text-center py-10">
-            <p className="text-lg animate-pulse">Loading products...</p>
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="mt-2 text-lg">Loading products...</p>
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-10">
@@ -160,7 +193,7 @@ const ProductsList: React.FC = () => {
             <p className="text-muted-foreground">Try adjusting your search or filter criteria.</p>
           </div>
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -196,11 +229,11 @@ const ProductsList: React.FC = () => {
               <TableBody>
                 {filteredProducts.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.title}</TableCell>
-                    <TableCell>${parseFloat(product.price.toString()).toFixed(2)}</TableCell>
-                    <TableCell>{product.artist}</TableCell>
-                    <TableCell>{product.category}</TableCell>
-                    <TableCell>{new Date(product.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{product.title || 'Untitled'}</TableCell>
+                    <TableCell>${parseFloat((product.price || 0).toString()).toFixed(2)}</TableCell>
+                    <TableCell>{product.artist || 'Unknown'}</TableCell>
+                    <TableCell>{product.category || 'Uncategorized'}</TableCell>
+                    <TableCell>{product.created_at ? new Date(product.created_at).toLocaleDateString() : 'Unknown'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -231,11 +264,244 @@ const ProductsList: React.FC = () => {
   );
 };
 
+// ProductForm component for adding and editing products
+const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
+  const navigate = useNavigate();
+  const isEditing = !!productId;
+  
+  const [formState, setFormState] = useState({
+    title: '',
+    description: '',
+    price: 0,
+    artist: '',
+    category: '',
+    image_url: '',
+    dimensions: ''
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Fetch product data when editing
+  const { isLoading } = useQuery({
+    queryKey: ['product', productId],
+    queryFn: async () => {
+      if (!productId) return null;
+      
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+        
+      if (error) throw error;
+      
+      // Update form state with existing product data
+      if (data) {
+        setFormState({
+          title: data.title || '',
+          description: data.description || '',
+          price: data.price || 0,
+          artist: data.artist || '',
+          category: data.category || '',
+          image_url: data.image_url || '',
+          dimensions: data.dimensions || ''
+        });
+      }
+      
+      return data;
+    },
+    enabled: isEditing,
+  });
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormState(prev => ({
+      ...prev,
+      [name]: name === 'price' ? parseFloat(value) || 0 : value
+    }));
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      if (isEditing) {
+        // Update existing product
+        const { error } = await supabase
+          .from('products')
+          .update(formState)
+          .eq('id', productId);
+          
+        if (error) throw error;
+        toast.success("Product updated successfully");
+      } else {
+        // Add new product
+        const { error } = await supabase
+          .from('products')
+          .insert([formState]);
+          
+        if (error) throw error;
+        toast.success("Product added successfully");
+      }
+      
+      // Navigate back to products list
+      navigate('/admin/products');
+    } catch (error) {
+      console.error("Error saving product:", error);
+      toast.error(`Failed to ${isEditing ? 'update' : 'add'} product`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const categories = ["Abstract", "Portrait", "Landscape", "Surreal", "Modern"];
+  
+  if (isLoading) {
+    return (
+      <div className="text-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="mt-2 text-lg">Loading product details...</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">
+          {isEditing ? 'Edit Product' : 'Add New Product'}
+        </h1>
+        <p className="text-muted-foreground">
+          {isEditing ? 'Update the product details' : 'Fill in the details for the new product'}
+        </p>
+      </div>
+      
+      <Card className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="title" className="text-sm font-medium">Title</label>
+              <Input
+                id="title"
+                name="title"
+                value={formState.title}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="price" className="text-sm font-medium">Price ($)</label>
+              <Input
+                id="price"
+                name="price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formState.price}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="artist" className="text-sm font-medium">Artist</label>
+              <Input
+                id="artist"
+                name="artist"
+                value={formState.artist}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="category" className="text-sm font-medium">Category</label>
+              <Select 
+                name="category" 
+                value={formState.category} 
+                onValueChange={(value) => 
+                  handleInputChange({ target: { name: 'category', value } } as any)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="image_url" className="text-sm font-medium">Image URL</label>
+              <Input
+                id="image_url"
+                name="image_url"
+                value={formState.image_url || ''}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="dimensions" className="text-sm font-medium">Dimensions</label>
+              <Input
+                id="dimensions"
+                name="dimensions"
+                value={formState.dimensions || ''}
+                onChange={handleInputChange}
+                placeholder="e.g., 24\" x 36\""
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <label htmlFor="description" className="text-sm font-medium">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formState.description || ''}
+              onChange={handleInputChange}
+              rows={5}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
+            />
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={() => navigate('/admin/products')}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEditing ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                <>{isEditing ? 'Update Product' : 'Create Product'}</>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  );
+};
+
 const ProductsManager: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<ProductsList />} />
-      {/* We would add more routes for add/edit product forms */}
+      <Route path="/new" element={<ProductForm />} />
+      <Route path="/edit/:id" element={<ProductForm productId="{id}" />} />
     </Routes>
   );
 };

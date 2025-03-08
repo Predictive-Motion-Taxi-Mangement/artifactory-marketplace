@@ -153,12 +153,12 @@ const ProductsList: React.FC = () => {
 
   const handleDuplicateProduct = async (product: Product) => {
     try {
-      // Create a new product object with required fields explicitly defined
+      // Create a new product object with required fields explicitly defined as non-optional
       const newProduct = {
-        title: product.title + " (Copy)", // Ensure title is defined
-        price: product.price, // Ensure price is defined
-        artist: product.artist || "Unknown", // Ensure artist has a fallback
-        category: product.category || "Uncategorized", // Ensure category has a fallback
+        title: product.title ? product.title + " (Copy)" : "Untitled (Copy)", // Ensure title is non-optional with fallback
+        price: typeof product.price === 'number' ? product.price : 0, // Ensure price is non-optional with fallback
+        artist: product.artist || "Unknown", 
+        category: product.category || "Uncategorized",
         description: product.description || "",
         image_url: product.image_url || "",
         dimensions: product.dimensions || "",
@@ -462,9 +462,16 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         if (error) throw error;
         toast.success("Product updated successfully");
       } else {
+        // Ensure required fields are definitely non-optional when inserting
+        const productData = {
+          ...data,
+          title: data.title || "Untitled",
+          price: typeof data.price === 'number' ? data.price : 0
+        };
+
         const { error } = await supabase
           .from('products')
-          .insert([data]);
+          .insert([productData]);
           
         if (error) throw error;
         toast.success("Product added successfully");

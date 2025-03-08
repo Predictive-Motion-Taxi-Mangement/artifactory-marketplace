@@ -30,7 +30,12 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     const checkAdminAuth = () => {
       const savedAdmin = localStorage.getItem("admin");
       if (savedAdmin) {
-        setAdmin(JSON.parse(savedAdmin));
+        try {
+          setAdmin(JSON.parse(savedAdmin));
+        } catch (error) {
+          console.error("Error parsing admin from localStorage:", error);
+          localStorage.removeItem("admin");
+        }
       }
       setIsLoading(false);
     };
@@ -40,6 +45,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const adminLogin = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    console.log("Attempting admin login for:", email);
     
     try {
       // Verify admin credentials against the database
@@ -48,20 +54,32 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         .select('*')
         .eq('email', email);
       
-      if (error || !data || data.length === 0) {
+      if (error) {
+        console.error("Database error during admin login:", error);
+        toast.error("Error connecting to database");
+        setIsLoading(false);
+        return false;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log("No admin found with email:", email);
         toast.error("Invalid admin credentials");
         setIsLoading(false);
         return false;
       }
       
       const adminData = data[0];
+      console.log("Found admin with matching email");
       
       // Simple password check (in a real app, you'd use bcrypt or similar)
       if (adminData.password !== password) {
+        console.log("Password mismatch for admin");
         toast.error("Invalid admin credentials");
         setIsLoading(false);
         return false;
       }
+      
+      console.log("Admin credentials validated successfully");
       
       // Create admin session
       const adminUser = {
@@ -78,11 +96,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
       
-      await supabase.from('admin_sessions').insert({
+      const { error: sessionError } = await supabase.from('admin_sessions').insert({
         admin_id: adminData.id,
         token: sessionToken,
         expires_at: expiresAt.toISOString()
       });
+      
+      if (sessionError) {
+        console.error("Error creating admin session:", sessionError);
+        // Continue anyway as the admin is authenticated
+      }
       
       setIsLoading(false);
       toast.success("Admin login successful");

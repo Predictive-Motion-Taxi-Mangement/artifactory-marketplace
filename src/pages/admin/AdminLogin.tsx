@@ -5,15 +5,16 @@ import { useAdmin } from "@/context/AdminContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff, Lock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminLogin: React.FC = () => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("admin@artifi.com");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { adminLogin, isAdminAuthenticated } = useAdmin();
+  const [loginError, setLoginError] = useState("");
+  const { adminLogin, isAdminAuthenticated, isLoading } = useAdmin();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,9 +25,10 @@ const AdminLogin: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError("");
     
     if (!email || !password) {
-      toast.error("Please fill in all fields");
+      setLoginError("Please fill in all fields");
       return;
     }
     
@@ -37,10 +39,12 @@ const AdminLogin: React.FC = () => {
       
       if (success) {
         navigate("/admin/dashboard");
+      } else {
+        setLoginError("Invalid email or password");
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("An unexpected error occurred");
+      setLoginError("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -62,6 +66,13 @@ const AdminLogin: React.FC = () => {
             Enter your credentials to access the admin dashboard
           </p>
         </div>
+
+        {loginError && (
+          <div className="bg-destructive/10 text-destructive p-3 rounded-md flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{loginError}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">

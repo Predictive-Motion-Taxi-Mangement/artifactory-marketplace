@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Explore from "./pages/Explore";
 import ArtworkDetail from "./pages/ArtworkDetail";
 import Checkout from "./pages/Checkout";
+import Account from "./pages/Account";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/explore" element={<Explore />} />
               <Route path="/artwork/:id" element={<ArtworkDetail />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/account" element={<Account />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

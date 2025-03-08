@@ -1,6 +1,5 @@
-
 import React, { useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -32,7 +31,6 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import ProductForm from "./ProductForm";
 
 interface Product {
   id: string;
@@ -57,7 +55,6 @@ const ProductsList: React.FC = () => {
         .from('products')
         .select('*');
       
-      // Apply sorting
       query = query.order(sortField, { ascending: sortDirection === "asc" });
       
       const { data, error } = await query;
@@ -90,7 +87,6 @@ const ProductsList: React.FC = () => {
     }
   };
 
-  // Filter products based on search term and category
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.artist?.toLowerCase().includes(searchTerm.toLowerCase()) || '';
@@ -264,7 +260,11 @@ const ProductsList: React.FC = () => {
   );
 };
 
-// ProductForm component for adding and editing products
+const ProductFormWrapper = () => {
+  const { id } = useParams();
+  return <ProductForm productId={id} />;
+};
+
 const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
   const navigate = useNavigate();
   const isEditing = !!productId;
@@ -281,7 +281,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Fetch product data when editing
   const { isLoading } = useQuery({
     queryKey: ['product', productId],
     queryFn: async () => {
@@ -295,7 +294,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         
       if (error) throw error;
       
-      // Update form state with existing product data
       if (data) {
         setFormState({
           title: data.title || '',
@@ -327,7 +325,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
     
     try {
       if (isEditing) {
-        // Update existing product
         const { error } = await supabase
           .from('products')
           .update(formState)
@@ -336,7 +333,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         if (error) throw error;
         toast.success("Product updated successfully");
       } else {
-        // Add new product
         const { error } = await supabase
           .from('products')
           .insert([formState]);
@@ -345,7 +341,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         toast.success("Product added successfully");
       }
       
-      // Navigate back to products list
       navigate('/admin/products');
     } catch (error) {
       console.error("Error saving product:", error);
@@ -501,7 +496,7 @@ const ProductsManager: React.FC = () => {
     <Routes>
       <Route path="/" element={<ProductsList />} />
       <Route path="/new" element={<ProductForm />} />
-      <Route path="/edit/:id" element={<ProductForm productId="{id}" />} />
+      <Route path="/edit/:id" element={<ProductFormWrapper />} />
     </Routes>
   );
 };

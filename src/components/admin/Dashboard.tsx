@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -86,7 +85,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Products", 
-      value: isLoadingProducts ? "Loading..." : productsCount,
+      value: isLoadingProducts ? "Loading..." : productsCount?.toString() || "0",
       change: "+3", 
       trend: "up",
       icon: Package,
@@ -95,7 +94,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Orders", 
-      value: isLoadingOrders ? "Loading..." : ordersCount,
+      value: isLoadingOrders ? "Loading..." : ordersCount?.toString() || "0",
       change: "+22.4%", 
       trend: "up",
       icon: ShoppingBag,
@@ -104,7 +103,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Visitors", 
-      value: isLoadingUsers ? "Loading..." : (usersCount * 178).toString(),
+      value: isLoadingUsers ? "Loading..." : ((usersCount || 0) * 178).toString(),
       change: "+18.7%", 
       trend: "up",
       icon: Eye,
@@ -120,7 +119,6 @@ const Dashboard: React.FC = () => {
     { title: "Manage Blog", icon: FileText, path: "/admin/blog", color: "bg-amber-100 dark:bg-amber-900" },
   ];
 
-  // Activity data (mocked for demo)
   const recentActivity = [
     {
       type: "order",

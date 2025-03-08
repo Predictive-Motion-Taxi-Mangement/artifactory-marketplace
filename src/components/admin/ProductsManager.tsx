@@ -45,7 +45,7 @@ interface Product {
 const ProductsList: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortField, setSortField] = useState("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
@@ -91,7 +91,7 @@ const ProductsList: React.FC = () => {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.artist?.toLowerCase().includes(searchTerm.toLowerCase()) || '';
-    const matchesCategory = !categoryFilter || product.category === categoryFilter;
+    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -167,7 +167,7 @@ const ProductsList: React.FC = () => {
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}

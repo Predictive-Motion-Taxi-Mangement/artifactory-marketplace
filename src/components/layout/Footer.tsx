@@ -133,6 +133,11 @@ const Footer: React.FC = () => {
                   Terms & Conditions
                 </Link>
               </li>
+              <li>
+                <Link to="/admin/login" className="text-sm text-foreground/80 hover:text-foreground transition-apple">
+                  Admin Login
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

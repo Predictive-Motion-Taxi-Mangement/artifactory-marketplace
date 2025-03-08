@@ -4,6 +4,8 @@ import { ShoppingCart, X, Minus, Plus, ArrowRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const Cart: React.FC = () => {
   const { 
@@ -15,6 +17,11 @@ const Cart: React.FC = () => {
     totalItems,
     totalPrice 
   } = useCart();
+
+  const handleRemoveItem = (id: string, title: string) => {
+    removeFromCart(id);
+    toast.success(`${title} removed from cart`);
+  };
 
   return (
     <>
@@ -57,12 +64,12 @@ const Cart: React.FC = () => {
               <p className="text-muted-foreground text-sm mb-6">
                 Add some artwork to your cart and it will appear here.
               </p>
-              <button
+              <Button
                 onClick={toggleCart}
-                className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium transition-apple hover:bg-primary/90"
+                className="inline-flex items-center"
               >
                 Continue Shopping
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="space-y-6">
@@ -82,7 +89,7 @@ const Cart: React.FC = () => {
                     <div className="flex justify-between">
                       <h3 className="font-medium">{item.title}</h3>
                       <button 
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => handleRemoveItem(item.id, item.title)}
                         className="text-muted-foreground hover:text-destructive transition-apple"
                         aria-label={`Remove ${item.title} from cart`}
                       >

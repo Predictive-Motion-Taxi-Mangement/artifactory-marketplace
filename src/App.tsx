@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Explore from "./pages/Explore";
 import ArtworkDetail from "./pages/ArtworkDetail";
+import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/artwork/:id" element={<ArtworkDetail />} />
+              <Route path="/checkout" element={<Checkout />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

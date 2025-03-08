@@ -151,7 +151,7 @@ const ProductsList: React.FC = () => {
   const handleDuplicateProduct = async (product: Product) => {
     try {
       const newProduct = {
-        title: product.title ? product.title + " (Copy)" : "Untitled (Copy)", 
+        title: product.title || "Untitled (Copy)", 
         price: typeof product.price === 'number' ? product.price : 0, 
         artist: product.artist || "Unknown", 
         category: product.category || "Uncategorized",
@@ -163,7 +163,7 @@ const ProductsList: React.FC = () => {
       
       const { data, error } = await supabase
         .from('products')
-        .insert([newProduct])
+        .insert(newProduct)
         .select();
       
       if (error) throw error;
@@ -450,13 +450,20 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
     setIsSubmitting(true);
     
     try {
+      console.log("Submitting product data:", data);
+      
       const productData = {
-        ...data,
         title: data.title || "Untitled",
-        price: typeof data.price === 'number' ? data.price : 0
+        price: typeof data.price === 'number' ? data.price : 0,
+        artist: data.artist || "Unknown",
+        category: data.category || "Uncategorized",
+        description: data.description || "",
+        image_url: data.image_url || "",
+        dimensions: data.dimensions || "",
+        tags: data.tags || []
       };
 
-      if (isEditing) {
+      if (isEditing && productId) {
         const { error } = await supabase
           .from('products')
           .update(productData)
@@ -465,11 +472,15 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
         if (error) throw error;
         toast.success("Product updated successfully");
       } else {
+        console.log("Inserting new product:", productData);
         const { error } = await supabase
           .from('products')
-          .insert([productData]);
+          .insert(productData);
           
-        if (error) throw error;
+        if (error) {
+          console.error("Supabase insert error:", error);
+          throw error;
+        }
         toast.success("Product added successfully");
       }
       
@@ -764,7 +775,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                     )}
                   />
                   
-                  {/* Image preview */}
                   {form.watch('image_url') && (
                     <div className="mt-4">
                       <p className="text-sm font-medium mb-2">Image Preview</p>

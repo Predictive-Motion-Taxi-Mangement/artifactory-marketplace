@@ -11,9 +11,10 @@ interface ArtworkCardProps {
   id: string;
   title: string;
   artistName: string;
-  artistId: string;
+  artistId?: string;  // Making artistId optional
   price: number;
   image: string;
+  category?: string;  // Adding category as an optional prop
   className?: string;
 }
 
@@ -21,9 +22,10 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
   id,
   title,
   artistName,
-  artistId,
+  artistId = "", // Default value to avoid undefined errors
   price,
   image,
+  category,
   className,
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -145,6 +147,11 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
               {artistName}
             </button>
           </p>
+          {category && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {category}
+            </p>
+          )}
           <div className="flex items-center justify-between mt-2">
             <span className="font-medium">${price.toFixed(2)}</span>
             

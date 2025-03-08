@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
@@ -69,7 +68,6 @@ const Explore: React.FC = () => {
     searchParams.get('sort') || 'newest'
   );
 
-  // Update URL when filters change
   useEffect(() => {
     const params = new URLSearchParams();
     
@@ -81,12 +79,10 @@ const Explore: React.FC = () => {
     setSearchParams(params, { replace: true });
   }, [searchTerm, selectedCategory, selectedSubcategory, sortOrder, setSearchParams]);
 
-  // Fetch categories
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['explore-categories'],
     queryFn: async () => {
       try {
-        // Fetch all categories
         const { data: allCategories, error } = await supabase
           .from('categories')
           .select('*')
@@ -94,19 +90,15 @@ const Explore: React.FC = () => {
 
         if (error) throw error;
 
-        // Organize into hierarchy
         const mainCategories: Category[] = [];
         const categoriesMap: Record<string, Category> = {};
 
-        // First pass: Create a map of all categories
         allCategories?.forEach((category: Category) => {
           categoriesMap[category.id] = { ...category, subcategories: [] };
         });
 
-        // Second pass: Organize into hierarchy
         allCategories?.forEach((category: Category) => {
           if (category.parent_id && categoriesMap[category.parent_id]) {
-            // This is a subcategory
             if (!categoriesMap[category.parent_id].subcategories) {
               categoriesMap[category.parent_id].subcategories = [];
             }
@@ -114,7 +106,6 @@ const Explore: React.FC = () => {
               categoriesMap[category.id]
             );
           } else {
-            // This is a main category
             mainCategories.push(categoriesMap[category.id]);
           }
         });
@@ -127,12 +118,10 @@ const Explore: React.FC = () => {
     },
   });
 
-  // Find selected main category and its subcategories
   const selectedMainCategory = categories.find(
     (cat) => cat.id === selectedCategory
   );
-  
-  // Fetch products with filters
+
   const {
     data: products = [],
     isLoading: isLoadingProducts,
@@ -141,7 +130,6 @@ const Explore: React.FC = () => {
     queryKey: ['explore-products', searchTerm, selectedCategory, selectedSubcategory, sortOrder, priceRange],
     queryFn: async () => {
       try {
-        // Start building the query
         let query = supabase
           .from('products')
           .select(`
@@ -149,12 +137,9 @@ const Explore: React.FC = () => {
             categories(id, name, parent_id)
           `);
         
-        // Apply category filter
         if (selectedSubcategory) {
           query = query.eq('category_id', selectedSubcategory);
         } else if (selectedCategory) {
-          // If main category selected, need to include subcategories
-          // First, get all subcategories of the selected main category
           const { data: subcats } = await supabase
             .from('categories')
             .select('id')
@@ -162,7 +147,6 @@ const Explore: React.FC = () => {
           
           const subcategoryIds = subcats?.map(sub => sub.id) || [];
           
-          // Filter by main category or any of its subcategories
           if (subcategoryIds.length > 0) {
             query = query.or(`category_id.eq.${selectedCategory},category_id.in.(${subcategoryIds.join(',')})`);
           } else {
@@ -170,15 +154,12 @@ const Explore: React.FC = () => {
           }
         }
         
-        // Apply price filter
         query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
         
-        // Apply search term
         if (searchTerm) {
           query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,artist.ilike.%${searchTerm}%`);
         }
         
-        // Apply sorting
         switch (sortOrder) {
           case 'price-low':
             query = query.order('price', { ascending: true });
@@ -199,7 +180,6 @@ const Explore: React.FC = () => {
         
         if (error) throw error;
         
-        // Transform data to include category name
         return data?.map(product => ({
           ...product,
           category_name: product.categories?.name
@@ -210,11 +190,9 @@ const Explore: React.FC = () => {
       }
     },
   });
-  
-  // Get selected category for SEO
+
   const getSelectedCategoryInfo = () => {
     if (selectedSubcategory) {
-      // Find the subcategory
       for (const mainCat of categories) {
         const subCat = mainCat.subcategories?.find(
           sub => sub.id === selectedSubcategory
@@ -244,14 +222,14 @@ const Explore: React.FC = () => {
       breadcrumb: 'All Categories'
     };
   };
-  
+
   const categoryInfo = getSelectedCategoryInfo();
-  
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     refetchProducts();
   };
-  
+
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory(null);
@@ -260,7 +238,7 @@ const Explore: React.FC = () => {
     setPriceRange([0, 1000]);
     setSearchParams({});
   };
-  
+
   const hasActiveFilters = !!(
     searchTerm || 
     selectedCategory || 
@@ -278,7 +256,6 @@ const Explore: React.FC = () => {
       </Helmet>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
-        {/* Breadcrumb */}
         <nav className="flex mb-6 text-sm">
           <ol className="flex items-center space-x-2">
             <li>
@@ -298,7 +275,6 @@ const Explore: React.FC = () => {
         </nav>
         
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar for larger screens */}
           <div className="hidden lg:block space-y-6">
             <div>
               <h2 className="text-xl font-medium mb-4">Categories</h2>
@@ -397,7 +373,6 @@ const Explore: React.FC = () => {
             </div>
           </div>
           
-          {/* Mobile filter button and sheet */}
           <div className="lg:hidden mb-4">
             <Sheet>
               <SheetTrigger asChild>
@@ -516,7 +491,6 @@ const Explore: React.FC = () => {
             </Sheet>
           </div>
           
-          {/* Main content */}
           <div className="lg:col-span-3">
             <div className="flex flex-col space-y-4 mb-6">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -558,7 +532,6 @@ const Explore: React.FC = () => {
               </form>
             </div>
             
-            {/* Active filters */}
             {hasActiveFilters && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {searchTerm && (
@@ -628,7 +601,6 @@ const Explore: React.FC = () => {
               </div>
             )}
             
-            {/* Products grid */}
             {isLoadingProducts ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
                 {[...Array(6)].map((_, i) => (
@@ -659,9 +631,9 @@ const Explore: React.FC = () => {
                     key={product.id}
                     id={product.id}
                     title={product.title}
-                    artist={product.artist}
+                    artistName={product.artist || "Unknown Artist"}
                     price={product.price}
-                    imageUrl={product.image_url || '/placeholder.svg'}
+                    image={product.image_url || '/placeholder.svg'}
                     category={product.category_name}
                   />
                 ))}

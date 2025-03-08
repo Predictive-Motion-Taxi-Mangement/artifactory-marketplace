@@ -104,7 +104,8 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Visitors", 
-      value: isLoadingUsers ? "Loading..." : (usersCount !== null ? ((usersCount * 178).toString()) : "0"),
+      // Fixed the type error by ensuring we convert the number to string
+      value: isLoadingUsers ? "Loading..." : ((usersCount !== null ? (usersCount * 178) : 0).toString()), 
       change: "+18.7%", 
       trend: "up",
       icon: Eye,

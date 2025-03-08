@@ -48,11 +48,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     console.log("Attempting admin login for:", email);
     
     try {
+      // Use single quotes for the email to ensure proper SQL execution
+      console.log(`Checking for admin with email: '${email}'`);
+      
       // Verify admin credentials against the database
       const { data, error } = await supabase
         .from('admins')
         .select('*')
-        .eq('email', email);
+        .eq('email', email.trim().toLowerCase());
+      
+      console.log("Query response:", data, error);
       
       if (error) {
         console.error("Database error during admin login:", error);
@@ -69,7 +74,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       
       const adminData = data[0];
-      console.log("Found admin with matching email");
+      console.log("Found admin with matching email:", adminData);
       
       // Simple password check (in a real app, you'd use bcrypt or similar)
       if (adminData.password !== password) {

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -57,6 +57,7 @@ const ArtworkDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const { addToCart } = useCart();
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(demoArtwork.image);
   const [isFavorite, setIsFavorite] = useState(false);
   
@@ -85,6 +86,10 @@ const ArtworkDetail: React.FC = () => {
       title: isFavorite ? "Removed from wishlist" : "Added to wishlist",
       description: `${artwork.title} has been ${isFavorite ? "removed from" : "added to"} your wishlist.`,
     });
+  };
+
+  const handleRelatedArtworkClick = (relatedId: string) => {
+    navigate(`/artwork/${relatedId}`);
   };
   
   return (
@@ -258,10 +263,10 @@ const ArtworkDetail: React.FC = () => {
           <h2 className="text-2xl font-medium mb-6">You might also like</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {artwork.relatedArtworks.map((related) => (
-              <Link 
+              <div 
                 key={related.id}
-                to={`/artwork/${related.id}`}
-                className="group"
+                onClick={() => handleRelatedArtworkClick(related.id)}
+                className="group cursor-pointer"
               >
                 <div className="rounded-xl overflow-hidden aspect-square mb-3">
                   <img 
@@ -273,7 +278,7 @@ const ArtworkDetail: React.FC = () => {
                 <h3 className="font-medium mb-1 group-hover:text-primary transition-colors">{related.title}</h3>
                 <div className="text-foreground/80 text-sm">{related.artistName}</div>
                 <div className="mt-1 font-medium">${related.price.toFixed(2)}</div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>

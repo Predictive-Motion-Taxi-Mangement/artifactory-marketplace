@@ -47,6 +47,14 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
     });
   };
 
+  const handleArtistClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // This would navigate to artist page, using window.location
+    // to avoid the nested links issue
+    window.location.href = `/artists/${artistId}`;
+  };
+
   return (
     <div
       className={cn(
@@ -99,13 +107,12 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
           <h3 className="font-medium truncate">{title}</h3>
           <p className="text-sm text-muted-foreground mt-1">
             by{" "}
-            <Link
-              to={`/artists/${artistId}`}
+            <button
+              onClick={handleArtistClick}
               className="hover:text-foreground transition-apple"
-              onClick={(e) => e.stopPropagation()}
             >
               {artistName}
-            </Link>
+            </button>
           </p>
           <div className="flex items-center justify-between mt-2">
             <span className="font-medium">${price.toFixed(2)}</span>

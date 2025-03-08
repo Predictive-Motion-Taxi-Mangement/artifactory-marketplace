@@ -99,7 +99,13 @@ const Dashboard: React.FC = () => {
     }
   });
 
-  // Properly define stats with explicit string typing for values
+  // Create a function to safely convert any value to string
+  const safeToString = (value: any): string => {
+    if (value === null || value === undefined) return "0";
+    return String(value);
+  };
+
+  // Properly define stats with explicit string conversion for values
   const stats: StatItem[] = [
     { 
       title: "Total Sales", 
@@ -112,7 +118,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Products", 
-      value: isLoadingProducts ? "Loading..." : `${productsCount !== null ? productsCount : 0}`, 
+      value: isLoadingProducts ? "Loading..." : safeToString(productsCount), 
       change: "+3", 
       trend: "up",
       icon: Package,
@@ -121,7 +127,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Orders", 
-      value: isLoadingOrders ? "Loading..." : `${ordersCount !== null ? ordersCount : 0}`,
+      value: isLoadingOrders ? "Loading..." : safeToString(ordersCount),
       change: "+22.4%", 
       trend: "up",
       icon: ShoppingBag,
@@ -130,8 +136,8 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Visitors", 
-      // Convert to string using template literal to avoid type errors
-      value: isLoadingUsers ? "Loading..." : `${usersCount !== null ? usersCount * 178 : 0}`,
+      // Important fix: Convert the numeric calculation to string
+      value: isLoadingUsers ? "Loading..." : safeToString((usersCount || 0) * 178),
       change: "+18.7%", 
       trend: "up",
       icon: Eye,

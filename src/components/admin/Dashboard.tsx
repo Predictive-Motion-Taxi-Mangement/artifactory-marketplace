@@ -104,7 +104,7 @@ const Dashboard: React.FC = () => {
     },
     { 
       title: "Visitors", 
-      value: isLoadingUsers ? "Loading..." : ((usersCount || 0) * 178).toString(),
+      value: isLoadingUsers ? "Loading..." : (usersCount !== null ? ((usersCount * 178).toString()) : "0"),
       change: "+18.7%", 
       trend: "up",
       icon: Eye,

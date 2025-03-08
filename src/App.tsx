@@ -32,6 +32,8 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/explore" element={<Explore />} />
+                <Route path="/category/:categorySlug" element={<Explore />} />
+                <Route path="/category/:categorySlug/:subcategorySlug" element={<Explore />} />
                 <Route path="/artwork/:id" element={<ArtworkDetail />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/account" element={<Account />} />

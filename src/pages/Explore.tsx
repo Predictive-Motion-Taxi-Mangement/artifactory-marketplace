@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/layout/Layout';
@@ -55,7 +55,9 @@ interface Product {
 }
 
 const Explore: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { categorySlug, subcategorySlug } = useParams<{ categorySlug?: string, subcategorySlug?: string }>();
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -68,10 +70,6 @@ const Explore: React.FC = () => {
   const [categoryMap, setCategoryMap] = useState<Record<string, Category>>({});
   const [slugToIdMap, setSlugToIdMap] = useState<Record<string, string>>({});
   
-  // Get category and subcategory slugs from URL
-  const categorySlug = searchParams.get('category');
-  const subcategorySlug = searchParams.get('subcategory');
-
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['explore-categories'],
     queryFn: async () => {
@@ -140,20 +138,39 @@ const Explore: React.FC = () => {
     const params = new URLSearchParams();
     
     if (searchTerm) params.set('search', searchTerm);
-    
-    // Use the slugs in the URL instead of IDs
-    if (selectedCategoryId && categoryMap[selectedCategoryId]) {
-      params.set('category', categoryMap[selectedCategoryId].slug);
-    }
-    
-    if (selectedSubcategoryId && categoryMap[selectedSubcategoryId]) {
-      params.set('subcategory', categoryMap[selectedSubcategoryId].slug);
-    }
-    
     if (sortOrder && sortOrder !== "newest") params.set('sort', sortOrder);
     
     setSearchParams(params, { replace: true });
-  }, [searchTerm, selectedCategoryId, selectedSubcategoryId, sortOrder, categoryMap, setSearchParams]);
+  }, [searchTerm, sortOrder, setSearchParams]);
+
+  // Navigation handler when category/subcategory is selected
+  const handleCategoryNavigation = (categoryId: string | null, subcategoryId: string | null) => {
+    if (categoryId && categoryMap[categoryId]) {
+      const categorySlug = categoryMap[categoryId].slug;
+      
+      if (subcategoryId && categoryMap[subcategoryId]) {
+        // Navigate to subcategory
+        navigate(`/category/${categorySlug}/${categoryMap[subcategoryId].slug}${getQueryString()}`);
+      } else {
+        // Navigate to main category
+        navigate(`/category/${categorySlug}${getQueryString()}`);
+      }
+    } else {
+      // Navigate to all categories
+      navigate(`/explore${getQueryString()}`);
+    }
+  };
+
+  // Helper to get query string with current filters
+  const getQueryString = () => {
+    const params = new URLSearchParams();
+    
+    if (searchTerm) params.set('search', searchTerm);
+    if (sortOrder && sortOrder !== "newest") params.set('sort', sortOrder);
+    
+    const queryString = params.toString();
+    return queryString ? `?${queryString}` : '';
+  };
 
   const selectedMainCategory = categories.find(
     (cat) => cat.id === selectedCategoryId
@@ -269,11 +286,10 @@ const Explore: React.FC = () => {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCategoryId(null);
-    setSelectedSubcategoryId(null);
-    setSortOrder('newest');
-    setPriceRange([0, 1000]);
     setSearchParams({});
+    navigate('/explore');
+    setPriceRange([0, 1000]);
+    setSortOrder('newest');
   };
 
   const hasActiveFilters = !!(
@@ -298,14 +314,43 @@ const Explore: React.FC = () => {
             <li>
               <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
             </li>
-            <li className="flex items-center space-x-2">
-              <span className="text-muted-foreground">/</span>
-              <Link to="/explore" className="text-muted-foreground hover:text-foreground">Explore</Link>
-            </li>
-            {(selectedCategoryId || selectedSubcategoryId) && (
+            {selectedCategoryId ? (
+              <>
+                <li className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">/</span>
+                  <Link 
+                    to="/explore" 
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    All Categories
+                  </Link>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">/</span>
+                  {selectedSubcategoryId && selectedMainCategory ? (
+                    <Link 
+                      to={`/category/${selectedMainCategory.slug}`} 
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      {selectedMainCategory.name}
+                    </Link>
+                  ) : (
+                    <span>{categoryInfo.breadcrumb}</span>
+                  )}
+                </li>
+                {selectedSubcategoryId && selectedMainCategory && (
+                  <li className="flex items-center space-x-2">
+                    <span className="text-muted-foreground">/</span>
+                    <span>
+                      {selectedMainCategory.subcategories?.find(s => s.id === selectedSubcategoryId)?.name}
+                    </span>
+                  </li>
+                )}
+              </>
+            ) : (
               <li className="flex items-center space-x-2">
                 <span className="text-muted-foreground">/</span>
-                <span>{categoryInfo.breadcrumb}</span>
+                <span>All Categories</span>
               </li>
             )}
           </ol>
@@ -317,9 +362,12 @@ const Explore: React.FC = () => {
               <h2 className="text-xl font-medium mb-4">Categories</h2>
               <Accordion type="multiple" className="w-full">
                 <AccordionItem value="all-categories" className="border-b">
-                  <Link to="/explore" className={`block py-2 ${!selectedCategoryId ? 'font-medium text-primary' : 'text-foreground'}`}>
+                  <div 
+                    className={`block py-2 cursor-pointer ${!selectedCategoryId ? 'font-medium text-primary' : 'text-foreground'}`}
+                    onClick={() => handleCategoryNavigation(null, null)}
+                  >
                     All Categories
-                  </Link>
+                  </div>
                 </AccordionItem>
                 
                 {isLoadingCategories ? (
@@ -332,8 +380,7 @@ const Explore: React.FC = () => {
                         onClick={(e) => {
                           if (category.subcategories?.length === 0) {
                             e.preventDefault();
-                            setSelectedCategoryId(category.id);
-                            setSelectedSubcategoryId(null);
+                            handleCategoryNavigation(category.id, null);
                           }
                         }}
                       >
@@ -345,10 +392,7 @@ const Explore: React.FC = () => {
                           <div className="ml-4 space-y-2">
                             <div
                               className={`block py-1 cursor-pointer ${selectedCategoryId === category.id && !selectedSubcategoryId ? 'font-medium text-primary' : ''}`}
-                              onClick={() => {
-                                setSelectedCategoryId(category.id);
-                                setSelectedSubcategoryId(null);
-                              }}
+                              onClick={() => handleCategoryNavigation(category.id, null)}
                             >
                               All {category.name}
                             </div>
@@ -357,10 +401,7 @@ const Explore: React.FC = () => {
                               <div
                                 key={subcat.id}
                                 className={`block py-1 cursor-pointer ${selectedSubcategoryId === subcat.id ? 'font-medium text-primary' : ''}`}
-                                onClick={() => {
-                                  setSelectedCategoryId(category.id);
-                                  setSelectedSubcategoryId(subcat.id);
-                                }}
+                                onClick={() => handleCategoryNavigation(category.id, subcat.id)}
                               >
                                 {subcat.name}
                               </div>
@@ -432,10 +473,7 @@ const Explore: React.FC = () => {
                       <AccordionItem value="all-categories" className="border-b">
                         <div 
                           className={`block py-2 ${!selectedCategoryId ? 'font-medium text-primary' : 'text-foreground'}`}
-                          onClick={() => {
-                            setSelectedCategoryId(null);
-                            setSelectedSubcategoryId(null);
-                          }}
+                          onClick={() => handleCategoryNavigation(null, null)}
                         >
                           All Categories
                         </div>
@@ -448,8 +486,7 @@ const Explore: React.FC = () => {
                             onClick={(e) => {
                               if (category.subcategories?.length === 0) {
                                 e.preventDefault();
-                                setSelectedCategoryId(category.id);
-                                setSelectedSubcategoryId(null);
+                                handleCategoryNavigation(category.id, null);
                               }
                             }}
                           >
@@ -461,10 +498,7 @@ const Explore: React.FC = () => {
                               <div className="ml-4 space-y-2">
                                 <div
                                   className={`block py-1 cursor-pointer ${selectedCategoryId === category.id && !selectedSubcategoryId ? 'font-medium text-primary' : ''}`}
-                                  onClick={() => {
-                                    setSelectedCategoryId(category.id);
-                                    setSelectedSubcategoryId(null);
-                                  }}
+                                  onClick={() => handleCategoryNavigation(category.id, null)}
                                 >
                                   All {category.name}
                                 </div>
@@ -473,10 +507,7 @@ const Explore: React.FC = () => {
                                   <div
                                     key={subcat.id}
                                     className={`block py-1 cursor-pointer ${selectedSubcategoryId === subcat.id ? 'font-medium text-primary' : ''}`}
-                                    onClick={() => {
-                                      setSelectedCategoryId(category.id);
-                                      setSelectedSubcategoryId(subcat.id);
-                                    }}
+                                    onClick={() => handleCategoryNavigation(category.id, subcat.id)}
                                   >
                                     {subcat.name}
                                   </div>
@@ -536,7 +567,16 @@ const Explore: React.FC = () => {
                 </h1>
                 
                 <div className="flex gap-2">
-                  <Select value={sortOrder || "newest"} onValueChange={setSortOrder}>
+                  <Select value={sortOrder || "newest"} onValueChange={(value) => {
+                    setSortOrder(value);
+                    const newParams = new URLSearchParams(searchParams);
+                    if (value === "newest") {
+                      newParams.delete('sort');
+                    } else {
+                      newParams.set('sort', value);
+                    }
+                    setSearchParams(newParams);
+                  }}>
                     <SelectTrigger className="w-[150px]">
                       <SlidersHorizontal className="h-4 w-4 mr-2" />
                       <SelectValue placeholder="Sort by" />
@@ -578,7 +618,12 @@ const Explore: React.FC = () => {
                       variant="ghost"
                       size="icon"
                       className="h-4 w-4 ml-1 p-0"
-                      onClick={() => setSearchTerm('')}
+                      onClick={() => {
+                        setSearchTerm('');
+                        const newParams = new URLSearchParams(searchParams);
+                        newParams.delete('search');
+                        setSearchParams(newParams);
+                      }}
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -592,7 +637,7 @@ const Explore: React.FC = () => {
                       variant="ghost"
                       size="icon"
                       className="h-4 w-4 ml-1 p-0"
-                      onClick={() => setSelectedSubcategoryId(null)}
+                      onClick={() => handleCategoryNavigation(selectedCategoryId, null)}
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -606,7 +651,7 @@ const Explore: React.FC = () => {
                       variant="ghost"
                       size="icon"
                       className="h-4 w-4 ml-1 p-0"
-                      onClick={() => setSelectedCategoryId(null)}
+                      onClick={() => handleCategoryNavigation(null, null)}
                     >
                       <X className="h-3 w-3" />
                     </Button>

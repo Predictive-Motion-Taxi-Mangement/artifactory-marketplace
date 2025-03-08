@@ -60,7 +60,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
 
   return (
     <Link 
-      to={`/categories/${category.id}`}
+      to={`/category/${category.id}`}
       className={cn(
         "block rounded-2xl overflow-hidden h-[350px] relative group transition-transform duration-500 ease-apple-ease",
         isHovered ? "scale-[1.02]" : "scale-100"

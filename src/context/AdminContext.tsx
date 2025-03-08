@@ -46,31 +46,32 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       const { data, error } = await supabase
         .from('admins')
         .select('*')
-        .eq('email', email)
-        .single();
+        .eq('email', email);
       
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         toast.error("Invalid admin credentials");
         setIsLoading(false);
         return false;
       }
       
+      const adminData = data[0];
+      
       // Simple password check (in a real app, you'd use bcrypt or similar)
-      if (data.password !== password) {
+      if (adminData.password !== password) {
         toast.error("Invalid admin credentials");
         setIsLoading(false);
         return false;
       }
       
       // Create admin session
-      const adminData = {
-        id: data.id,
-        name: data.name,
-        email: data.email
+      const adminUser = {
+        id: adminData.id,
+        name: adminData.name,
+        email: adminData.email
       };
       
-      setAdmin(adminData);
-      localStorage.setItem("admin", JSON.stringify(adminData));
+      setAdmin(adminUser);
+      localStorage.setItem("admin", JSON.stringify(adminUser));
       
       // Create session in database
       const sessionToken = crypto.randomUUID();
@@ -78,7 +79,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
       
       await supabase.from('admin_sessions').insert({
-        admin_id: data.id,
+        admin_id: adminData.id,
         token: sessionToken,
         expires_at: expiresAt.toISOString()
       });

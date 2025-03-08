@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState("admin@artifi.com");
-  const [password, setPassword] = useState("adminpassword123"); // Pre-fill with default password for demo
+  const [password, setPassword] = useState("adminpassword123");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -35,13 +35,14 @@ const AdminLogin: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      console.log("Submitting with email:", email, "and password:", password);
+      console.log("Submitting login with:", email, password);
       const success = await adminLogin(email, password);
       
       if (success) {
         navigate("/admin/dashboard");
       } else {
         setLoginError("Invalid email or password");
+        toast.error("Login failed. Please use the default credentials.");
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -121,7 +122,7 @@ const AdminLogin: React.FC = () => {
         </form>
 
         <div className="text-center text-sm text-muted-foreground">
-          <p>Default admin credentials (for demo):</p>
+          <p className="font-semibold">Use these admin credentials:</p>
           <p>Email: admin@artifi.com</p>
           <p>Password: adminpassword123</p>
         </div>

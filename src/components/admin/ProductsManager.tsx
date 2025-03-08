@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -21,7 +20,6 @@ import {
   DollarSign,
   Save,
   X,
-  Upload,
   Check
 } from "lucide-react";
 import { 
@@ -55,6 +53,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import ImageUploader from "./ImageUploader";
 
 interface Product {
   id: string;
@@ -82,7 +81,6 @@ const categories = [
   "Minimalism"
 ];
 
-// Validation schema for product form
 const productSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters" }),
   price: z.coerce.number().min(0.01, { message: "Price must be greater than 0" }),
@@ -96,7 +94,6 @@ const productSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
-// ProductList Component
 const ProductsList: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -153,10 +150,9 @@ const ProductsList: React.FC = () => {
 
   const handleDuplicateProduct = async (product: Product) => {
     try {
-      // Create a new product object with required fields explicitly defined as non-optional
       const newProduct = {
-        title: product.title ? product.title + " (Copy)" : "Untitled (Copy)", // Ensure title is non-optional with fallback
-        price: typeof product.price === 'number' ? product.price : 0, // Ensure price is non-optional with fallback
+        title: product.title ? product.title + " (Copy)" : "Untitled (Copy)", 
+        price: typeof product.price === 'number' ? product.price : 0, 
         artist: product.artist || "Unknown", 
         category: product.category || "Uncategorized",
         description: product.description || "",
@@ -374,7 +370,6 @@ const ProductsList: React.FC = () => {
   );
 };
 
-// ProductForm Component
 const ProductFormWrapper: React.FC = () => {
   const { id } = useParams();
   return <ProductForm productId={id} />;
@@ -387,7 +382,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
   const [tagInput, setTagInput] = useState("");
   const [activeTab, setActiveTab] = useState("basic");
   
-  // Define the form with validation
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -416,7 +410,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
       if (error) throw error;
       
       if (data) {
-        // Reset form with product data
         form.reset({
           title: data.title || '',
           price: data.price || 0,
@@ -448,27 +441,30 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
     const currentTags = form.getValues('tags') || [];
     form.setValue('tags', currentTags.filter(t => t !== tag));
   };
+
+  const handleImageUploaded = (url: string) => {
+    form.setValue('image_url', url);
+  };
   
   const onSubmit = async (data: ProductFormValues) => {
     setIsSubmitting(true);
     
     try {
+      const productData = {
+        ...data,
+        title: data.title || "Untitled",
+        price: typeof data.price === 'number' ? data.price : 0
+      };
+
       if (isEditing) {
         const { error } = await supabase
           .from('products')
-          .update(data)
+          .update(productData)
           .eq('id', productId);
           
         if (error) throw error;
         toast.success("Product updated successfully");
       } else {
-        // Ensure required fields are definitely non-optional when inserting
-        const productData = {
-          ...data,
-          title: data.title || "Untitled",
-          price: typeof data.price === 'number' ? data.price : 0
-        };
-
         const { error } = await supabase
           .from('products')
           .insert([productData]);
@@ -478,9 +474,9 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
       }
       
       navigate('/admin/products');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving product:", error);
-      toast.error(`Failed to ${isEditing ? 'update' : 'add'} product`);
+      toast.error(`Failed to ${isEditing ? 'update' : 'add'} product: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -587,6 +583,7 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -724,6 +721,29 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                     name="image_url"
                     render={({ field }) => (
                       <FormItem>
+                        <FormLabel>Product Image</FormLabel>
+                        <FormControl>
+                          <ImageUploader 
+                            onImageUploaded={handleImageUploaded} 
+                            existingImageUrl={field.value}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="flex items-center gap-2">
+                    <Separator className="flex-1" />
+                    <span className="text-xs text-muted-foreground px-2">OR</span>
+                    <Separator className="flex-1" />
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem>
                         <FormLabel>Image URL</FormLabel>
                         <FormControl>
                           <div className="relative">
@@ -731,12 +751,13 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                             <Input 
                               placeholder="https://example.com/image.jpg" 
                               className="pl-8"
-                              {...field}
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.value)}
                             />
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Enter a URL for the product image.
+                          Alternatively, enter a URL for the product image.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -757,14 +778,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
                       </div>
                     </div>
                   )}
-                  
-                  <div className="border border-dashed rounded-md p-6 text-center">
-                    <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium">File upload coming soon</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      In the meantime, please use an image URL.
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -799,7 +812,6 @@ const ProductForm: React.FC<{ productId?: string }> = ({ productId }) => {
   );
 };
 
-// Main ProductsManager component
 const ProductsManager: React.FC = () => {
   return (
     <Routes>
